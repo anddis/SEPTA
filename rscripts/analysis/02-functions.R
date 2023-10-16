@@ -541,6 +541,7 @@ make_table_2 <- function(dat, d) {
 
 make_row_table_3 <- function(dat, d, y, testlabel) {
   na.fail(dat[[d]])
+  cbsbtb <- substr(d, 1, 3)
   
   if (y == "all") {
     out_df <- make_first_row_table_3(dat, d)
@@ -558,23 +559,24 @@ make_row_table_3 <- function(dat, d, y, testlabel) {
   d <- dat[[d]]
   y <- dat[[y]]
   
-  tab1 <- addmargins(table(y, dat$cb_isup01))
-  tab2 <- addmargins(table(y, dat$cb_isup1))
-  tab3 <- addmargins(table(y, dat$cb_isup2p))
-  tab4 <- addmargins(table(y, dat$cb_isup3p))
+  tab1 <- addmargins(table(y, dat[[paste0(cbsbtb, "isup01")]]))
+  tab2 <- addmargins(table(y, dat[[paste0(cbsbtb, "isup1")]]))
+  tab3 <- addmargins(table(y, dat[[paste0(cbsbtb, "isup2p")]]))
+  tab4 <- addmargins(table(y, dat[[paste0(cbsbtb, "isup3p")]]))
   
   ope <- acc.1test(tab.1test(d = d, y = y, testname = testname))
   
   out <- c(
     testlabel =          testlabel,
     nobs =               ope$tab["Total", "Total"],
-    avoided_cb_isup01 =  paste0(tab1["0", "1"], " (", format_percent(tab1["0", "1"]/tab1["Sum", "1"]), ")"),
-    avoided_cb_isup1 =   paste0(tab2["0", "1"], " (", format_percent(tab2["0", "1"]/tab2["Sum", "1"]), ")"),
+    performed_isup01 = paste0(tab1["1", "1"], " (", format_percent(tab1["1", "1"]/tab1["Sum", "1"]), ")"),
+    avoided_isup01 =  paste0(tab1["0", "1"], " (", format_percent(tab1["0", "1"]/tab1["Sum", "1"]), ")"),
+    avoided_isup1 =   paste0(tab2["0", "1"], " (", format_percent(tab2["0", "1"]/tab2["Sum", "1"]), ")"),
     specificity =        paste0(format_percent(ope$specificity["est"]), " (", format_percent(ope$specificity["lcl"]), "-",  format_percent(ope$specificity["ucl"]), ")"),
     npv =                paste0(format_percent(ope$npv["est"]), " (", format_percent(ope$npv["lcl"]), "-",  format_percent(ope$npv["ucl"]), ")"),
-    detected_cb_isup2p = paste0(tab3["1", "1"], " (", format_percent(tab3["1", "1"]/tab3["Sum", "1"]), ")"),
-    missed_cb_isup2p =   paste0(tab3["0", "1"], " (", format_percent(tab3["0", "1"]/tab3["Sum", "1"]), ")"),
-    missed_cb_isup3p =   paste0(tab4["0", "1"], " (", format_percent(tab4["0", "1"]/tab4["Sum", "1"]), ")"),
+    detected_isup2p = paste0(tab3["1", "1"], " (", format_percent(tab3["1", "1"]/tab3["Sum", "1"]), ")"),
+    missed_isup2p =   paste0(tab3["0", "1"], " (", format_percent(tab3["0", "1"]/tab3["Sum", "1"]), ")"),
+    missed_isup3p =   paste0(tab4["0", "1"], " (", format_percent(tab4["0", "1"]/tab4["Sum", "1"]), ")"),
     sensitivity =        paste0(format_percent(ope$sensitivity["est"]), " (", format_percent(ope$sensitivity["lcl"]), "-",  format_percent(ope$sensitivity["ucl"]), ")"),
     ppv =                paste0(format_percent(ope$ppv["est"]), " (", format_percent(ope$ppv["lcl"]), "-",  format_percent(ope$ppv["ucl"]), ")")
   )
@@ -601,13 +603,14 @@ make_first_row_table_3 <- function(dat, d) {
     strategy =           "All",
     threshold =          "None",
     nobs =               length(d),
-    avoided_cb_isup01 =  "0 (0%)",  
-    avoided_cb_isup1 =   "0 (0%)",
+    performed_isup01 = paste0(sum(1-d), " (100%)"),
+    avoided_isup01 =  "0 (0%)",  
+    avoided_isup1 =   "0 (0%)",
     specificity =        "0%",
     npv =                "—",
-    detected_cb_isup2p = paste0(sum(d), " (100%)"),
-    missed_cb_isup2p =   "0 (0%)",
-    missed_cb_isup3p =   "0 (0%)",
+    detected_isup2p = paste0(sum(d), " (100%)"),
+    missed_isup2p =   "0 (0%)",
+    missed_isup3p =   "0 (0%)",
     sensitivity =        "100%",
     ppv =                "—"
   )
@@ -666,13 +669,14 @@ gt_table_3 <- function(tbl) {
     race = "Race",
     strategy = "Strategy",
     threshold = "Threshold",
-    avoided_cb_isup01 = "Avoided ISUP Grade 1 or Benign Biopsies, n (%)",
-    avoided_cb_isup1 = "Avoided ISUP Grade 1 detection, n (%)",
+    performed_isup01 = "Performed ISUP Grade 1 or Benign biopsies, n (%)",
+    avoided_isup01 = "Avoided ISUP Grade 1 or Benign Biopsies, n (%)",
+    avoided_isup1 = "Avoided ISUP Grade 1 detection, n (%)",
     specificity = "Specificity (95% CI)",
     npv = "NPV (95% CI)",
-    detected_cb_isup2p = "Detected ISUP Grade >=2, n (%)",
-    missed_cb_isup2p = "Missed ISUP Grade >=2, n (%)",
-    missed_cb_isup3p = "Missed ISUP Grade >=3, n (%)",
+    detected_isup2p = "Detected ISUP Grade >=2, n (%)",
+    missed_isup2p = "Missed ISUP Grade >=2, n (%)",
+    missed_isup3p = "Missed ISUP Grade >=3, n (%)",
     sensitivity = "Sensitivity (95% CI)",
     ppv = "PPV (95% CI)"
   )

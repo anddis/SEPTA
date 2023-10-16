@@ -149,21 +149,6 @@ table_3_race |>
   bind_rows(.id = "race") |> 
   gt_table_3()
 
-
-# first_row_table_3_race <- split(septa, septa$race) |> 
-#   map(\(x) make_first_row_table_3(x, d = "cb_isup2p"))
-# 
-# 
-# map2(
-#   first_row_table_3_race,
-#   table_3_race |> 
-#     map(\(x)
-#         map(x, `[[`, "out_df") |> bind_rows()
-#     ), 
-#   bind_rows
-# ) |> 
-#   bind_rows(.id = "race") |> 
-#   gt_table_3()
 ```
 
 
