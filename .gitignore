@@ -1,3 +1,14 @@
+# Include only R files in directories /rscripts/analysis and /rscripts/power
+/data/
+/documents/
+/output/
+/rscripts/sandbox/
+/rscripts/analysis/*
+!/rscripts/analysis/*.R
+!/rscripts/analysis/*.qmd
+/rscripts/power/*
+!/rscripts/power/*.R
+
 # History files
 .Rhistory
 .Rapp.history
