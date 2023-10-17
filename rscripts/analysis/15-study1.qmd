@@ -437,6 +437,112 @@ full_join(
   tab_options(table.font.size = px(14))
 ```
 
+# Cancers missed/detected by race and blood test
+
+```{r}
+cancers_missed_detected <- septa_calibration |> 
+  pivot_longer(cols = unname(bloodtests[-1])) |> 
+  select(name, value, combined_grade_group, race) |> 
+  mutate(value = factor(value, labels = make_factor_labels()$ny),
+         name = factor(name, levels = bloodtests[-1],
+                       labels = names(bloodtests[-1]))) |> 
+  split(~ race) |> 
+  imap(\(s, n) tbl_strata(
+    select(s, -race),
+    strata = name,
+    .tbl_fun =
+      \(x) tbl_summary(x, by = value,
+                       label = list(combined_grade_group ~ "Combined biopsy"),
+                       all_categorical() ~ "{n}") |> 
+      modify_header(label = paste0("**", n, "**")),
+    .header = "**{strata}**"
+  ) |> 
+    as_gt() |> 
+    tab_options(table.font.size = px(14)))
+
+
+cancers_missed_detected[[1]]
+
+cancers_missed_detected[[2]]
+
+cancers_missed_detected[[3]]
+
+cancers_missed_detected[[4]]
+
+cancers_missed_detected[[5]]
+```
+
+
+# Alternative biopsy outcome definition
+
+```{r}
+septa_alternative_gg <- septa |> 
+  make_alternative_grade_group()
+```
+
+Cross-classification Combined biopsy GG versus Alternative outcome definition
+
+```{r}
+with(septa_alternative_gg,
+     addmargins(tablem(alternative_grade_group, combined_grade_group)))
+```
+
+
+## Table 2
+```{r}
+table_2_alt <- make_table_2(septa_alternative_gg, d = "al_isup2p")
+
+table_2_alt$out_df |> 
+  gt_table_2_alt() 
+```
+
+## Table 3
+
+```{r}
+table_3_alt <- imap(bloodtests, 
+                \(y, tl) make_row_table_3(dat = septa_alternative_gg, 
+                                          d = "al_isup2p", 
+                                          y = y, 
+                                          testlabel = tl)) 
+
+table_3_alt |> 
+  map(`[[`, "out_df") |> 
+  bind_rows() |> 
+  gt_table_3_alt()
+```
+
+## Table 2 by race
+
+```{r}
+table_2_race_alt <- split(septa_alternative_gg, septa_alternative_gg$race) |> 
+  map(\(x) make_table_2(x, d = "al_isup2p")) 
+
+table_2_race_alt |> 
+  map(`[[`, "out_df") |> 
+  bind_rows(.id = "race") |> 
+  gt_table_2_alt()
+```
+
+## Table 3 by race
+
+```{r}
+table_3_race_alt <- split(septa_alternative_gg, septa_alternative_gg$race) |> 
+  map(\(x)
+      imap(bloodtests, 
+           \(y, tl) make_row_table_3(dat = x, d = "al_isup2p", y = y, testlabel = tl)
+      )
+  )
+
+table_3_race_alt |> 
+  map(
+    \(r) map(r, `[[`, "out_df") |> bind_rows()
+  ) |> 
+  bind_rows(.id = "race") |> 
+  gt_table_3_alt()
+
+```
+
+
 # Session info
 
 ```{r}

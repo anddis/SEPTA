@@ -425,6 +425,37 @@ make_test_pca_vars <- function(dat) {
 }
 
 
+make_alternative_grade_group <- function(dat) {
+  sbx_perc_pos <- dat$systematic_cores_positive/dat$systematic_cores_total
+
+  dat$alternative_grade_group <- case_when(
+    dat$combined_grade_group == "Benign" ~ "Benign",
+    dat$combined_grade_group == "ISUP1" ~ "ISUP1",
+    dat$combined_grade_group == "ISUP2" & sbx_perc_pos >= 0.5 ~ "Unfavourable intermediate", 
+    dat$combined_grade_group == "ISUP2" & dat$psa > 10 ~ "Unfavourable intermediate",
+    dat$combined_grade_group == "ISUP2" ~ "Favourable intermediate",
+    dat$combined_grade_group == "ISUP3" ~ "Unfavourable intermediate",
+    dat$combined_grade_group == "ISUP4" ~ "ISUP4",
+    dat$combined_grade_group == "ISUP5" ~ "ISUP5"
+  ) |> factor(levels = c("Benign", 
+                         "ISUP1", 
+                         "Favourable intermediate",
+                         "Unfavourable intermediate", 
+                         "ISUP4", 
+                         "ISUP5"),
+              ordered = TRUE)
+  
+  # variable names below are to make make_row_table_3() work
+  dat$al_isup1  <- as.integer(dat$alternative_grade_group == "ISUP1") # needed to make make_row_table_3() work
+  dat$al_isup01 <- as.integer(dat$alternative_grade_group <= "Favourable intermediate")
+  dat$al_isup2p <- as.integer(dat$alternative_grade_group >= "Unfavourable intermediate")
+  dat$al_isup3p <- as.integer(dat$alternative_grade_group >= "Unfavourable intermediate") # needed to make make_row_table_3() work
+  
+  dat
+    
+}
+
+
 make_table1_vars <- function(dat) {
   
   # Copy of Race
@@ -1032,3 +1063,81 @@ plot_dca <- function(dat, title){
     labs(title = title)
 }
 
+
+
+gt_table_2_alt <- function(tbl) {
+  table_2_labels <- list(
+    sa = "Analysis",
+    stratum = "Stratum",
+    race = "Race",
+    nobs = "Men, n",
+    strategy = "Strategy",
+    threshold = "Threshold",
+    bx = "n",
+    p_ci = "% (95% CI)",
+    d = "n",
+    rse_ci = "Relative Sensitivity (95% CI)",
+    nd = "n",
+    rsp_ci = "Relative Specificity (95% CI)"
+  )
+  
+  tbl |> 
+    gt() |> 
+    (\(x) cols_label(x,
+                     .list = table_2_labels[names(x[["_data"]])]
+    ))() |>
+    tab_spanner(
+      label = "Performed Biopsies", columns = c("bx", "p_ci")
+    ) |> 
+    tab_spanner(
+      label = "Intermediate unfavourable or higher", columns = c("d", "rse_ci")
+    ) |> 
+    tab_spanner(
+      label = "Intermediate favourable or lower", columns = c("nd", "rsp_ci")
+    )  |> 
+    tab_spanner(
+      label = "Cancer Detection", columns = c("d", "rse_ci", "nd", "rsp_ci")
+    ) |> 
+    tab_style(
+      style = cell_text(weight = "bold"),
+      locations = list(cells_column_labels(),
+                       cells_column_spanners())
+    ) |> 
+    tab_options(table.font.size = px(14))
+}
+
+
+
+gt_table_3_alt <- function(tbl) {
+  table_3_labels <- list(
+    sa = "Analysis",
+    stratum = "Stratum",
+    nobs = "Men, n",
+    race = "Race",
+    strategy = "Strategy",
+    threshold = "Threshold",
+    performed_isup01 = "Performed Intermediate favourable or lower, n (%)",
+    avoided_isup01 = "Avoided Intermediate favourable or lower, n (%)",
+    avoided_isup1 = "Avoided ISUP Grade 1 detection, n (%)",
+    specificity = "Specificity (95% CI)",
+    npv = "NPV (95% CI)",
+    detected_isup2p = "Detected Intermediate unfavourable or higher, n (%)",
+    missed_isup2p = "Missed Intermediate unfavourable or higher, n (%)",
+    missed_isup3p = "Missed ISUP Grade >=3, n (%)",
+    sensitivity = "Sensitivity (95% CI)",
+    ppv = "PPV (95% CI)"
+  )
+  
+  tbl |> 
+    select(-avoided_isup1, -missed_isup3p) |> 
+    gt() |> 
+    (\(x) cols_label(x,
+                     .list = table_3_labels[names(x[["_data"]])]
+    ))() |> 
+    tab_style(
+      style = cell_text(weight = "bold"),
+      locations = list(cells_column_labels(),
+                       cells_column_spanners())
+    ) |> 
+    tab_options(table.font.size = px(14))
+}
