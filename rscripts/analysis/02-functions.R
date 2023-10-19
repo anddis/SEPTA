@@ -409,7 +409,7 @@ make_test_pca_vars <- function(dat) {
     dat[[paste0(prefix[i], "_isup3p")]] <- as.integer(dat[[var[i]]] >= "ISUP3")
   }
   
-  labels <- tribble( # add if needed
+  labels <- tribble( # add as needed
     ~var,                ~label,
     "cb_benign",         "Benign biopsy",
     "cb_isup1",          "ISUP Grade 1 cancer",
@@ -425,7 +425,7 @@ make_test_pca_vars <- function(dat) {
 }
 
 
-make_alternative_grade_group <- function(dat) {
+make_alternative_pca_vars <- function(dat) {
   sbx_perc_pos <- dat$systematic_cores_positive/dat$systematic_cores_total
 
   dat$alternative_grade_group <- case_when(
@@ -572,7 +572,7 @@ make_table_2 <- function(dat, d) {
 
 make_row_table_3 <- function(dat, d, y, testlabel) {
   na.fail(dat[[d]])
-  cbsbtb <- substr(d, 1, 3)
+  prefix <- substr(d, 1, 3)
   
   if (y == "all") {
     out_df <- make_first_row_table_3(dat, d)
@@ -590,24 +590,24 @@ make_row_table_3 <- function(dat, d, y, testlabel) {
   d <- dat[[d]]
   y <- dat[[y]]
   
-  tab1 <- addmargins(table(y, dat[[paste0(cbsbtb, "isup01")]]))
-  tab2 <- addmargins(table(y, dat[[paste0(cbsbtb, "isup1")]]))
-  tab3 <- addmargins(table(y, dat[[paste0(cbsbtb, "isup2p")]]))
-  tab4 <- addmargins(table(y, dat[[paste0(cbsbtb, "isup3p")]]))
+  tab1 <- addmargins(table(y, dat[[paste0(prefix, "isup01")]]))
+  tab2 <- addmargins(table(y, dat[[paste0(prefix, "isup1")]]))
+  tab3 <- addmargins(table(y, dat[[paste0(prefix, "isup2p")]]))
+  tab4 <- addmargins(table(y, dat[[paste0(prefix, "isup3p")]]))
   
   ope <- acc.1test(tab.1test(d = d, y = y, testname = testname))
   
   out <- c(
     testlabel =          testlabel,
     nobs =               ope$tab["Total", "Total"],
-    performed_isup01 = paste0(tab1["1", "1"], " (", format_percent(tab1["1", "1"]/tab1["Sum", "1"]), ")"),
-    avoided_isup01 =  paste0(tab1["0", "1"], " (", format_percent(tab1["0", "1"]/tab1["Sum", "1"]), ")"),
-    avoided_isup1 =   paste0(tab2["0", "1"], " (", format_percent(tab2["0", "1"]/tab2["Sum", "1"]), ")"),
+    performed_isup01 =   paste0(tab1["1", "1"], " (", format_percent(tab1["1", "1"]/tab1["Sum", "1"]), ")"),
+    avoided_isup01 =     paste0(tab1["0", "1"], " (", format_percent(tab1["0", "1"]/tab1["Sum", "1"]), ")"),
+    avoided_isup1 =      paste0(tab2["0", "1"], " (", format_percent(tab2["0", "1"]/tab2["Sum", "1"]), ")"),
     specificity =        paste0(format_percent(ope$specificity["est"]), " (", format_percent(ope$specificity["lcl"]), "-",  format_percent(ope$specificity["ucl"]), ")"),
     npv =                paste0(format_percent(ope$npv["est"]), " (", format_percent(ope$npv["lcl"]), "-",  format_percent(ope$npv["ucl"]), ")"),
-    detected_isup2p = paste0(tab3["1", "1"], " (", format_percent(tab3["1", "1"]/tab3["Sum", "1"]), ")"),
-    missed_isup2p =   paste0(tab3["0", "1"], " (", format_percent(tab3["0", "1"]/tab3["Sum", "1"]), ")"),
-    missed_isup3p =   paste0(tab4["0", "1"], " (", format_percent(tab4["0", "1"]/tab4["Sum", "1"]), ")"),
+    detected_isup2p =    paste0(tab3["1", "1"], " (", format_percent(tab3["1", "1"]/tab3["Sum", "1"]), ")"),
+    missed_isup2p =      paste0(tab3["0", "1"], " (", format_percent(tab3["0", "1"]/tab3["Sum", "1"]), ")"),
+    missed_isup3p =      paste0(tab4["0", "1"], " (", format_percent(tab4["0", "1"]/tab4["Sum", "1"]), ")"),
     sensitivity =        paste0(format_percent(ope$sensitivity["est"]), " (", format_percent(ope$sensitivity["lcl"]), "-",  format_percent(ope$sensitivity["ucl"]), ")"),
     ppv =                paste0(format_percent(ope$ppv["est"]), " (", format_percent(ope$ppv["lcl"]), "-",  format_percent(ope$ppv["ucl"]), ")")
   )
@@ -651,20 +651,7 @@ make_first_row_table_3 <- function(dat, d) {
 
 
 gt_table_2 <- function(tbl) {
-  table_2_labels <- list(
-    sa = "Analysis",
-    stratum = "Stratum",
-    race = "Race",
-    nobs = "Men, n",
-    strategy = "Strategy",
-    threshold = "Threshold",
-    bx = "n",
-    p_ci = "% (95% CI)",
-    d = "n",
-    rse_ci = "Relative Sensitivity (95% CI)",
-    nd = "n",
-    rsp_ci = "Relative Specificity (95% CI)"
-  )
+  table_2_labels <- make_gt_table_labels()$table_2
   
   tbl |> 
     gt() |> 
@@ -693,24 +680,7 @@ gt_table_2 <- function(tbl) {
 
 
 gt_table_3 <- function(tbl) {
-  table_3_labels <- list(
-    sa = "Analysis",
-    stratum = "Stratum",
-    nobs = "Men, n",
-    race = "Race",
-    strategy = "Strategy",
-    threshold = "Threshold",
-    performed_isup01 = "Performed ISUP Grade 1 or Benign biopsies, n (%)",
-    avoided_isup01 = "Avoided ISUP Grade 1 or Benign Biopsies, n (%)",
-    avoided_isup1 = "Avoided ISUP Grade 1 detection, n (%)",
-    specificity = "Specificity (95% CI)",
-    npv = "NPV (95% CI)",
-    detected_isup2p = "Detected ISUP Grade >=2, n (%)",
-    missed_isup2p = "Missed ISUP Grade >=2, n (%)",
-    missed_isup3p = "Missed ISUP Grade >=3, n (%)",
-    sensitivity = "Sensitivity (95% CI)",
-    ppv = "PPV (95% CI)"
-  )
+  table_3_labels <- make_gt_table_labels()$table_3
   
   tbl |> 
     gt() |> 
@@ -1066,20 +1036,7 @@ plot_dca <- function(dat, title){
 
 
 gt_table_2_alt <- function(tbl) {
-  table_2_labels <- list(
-    sa = "Analysis",
-    stratum = "Stratum",
-    race = "Race",
-    nobs = "Men, n",
-    strategy = "Strategy",
-    threshold = "Threshold",
-    bx = "n",
-    p_ci = "% (95% CI)",
-    d = "n",
-    rse_ci = "Relative Sensitivity (95% CI)",
-    nd = "n",
-    rsp_ci = "Relative Specificity (95% CI)"
-  )
+  table_2_labels <- make_gt_table_labels()$table_2
   
   tbl |> 
     gt() |> 
@@ -1109,24 +1066,7 @@ gt_table_2_alt <- function(tbl) {
 
 
 gt_table_3_alt <- function(tbl) {
-  table_3_labels <- list(
-    sa = "Analysis",
-    stratum = "Stratum",
-    nobs = "Men, n",
-    race = "Race",
-    strategy = "Strategy",
-    threshold = "Threshold",
-    performed_isup01 = "Performed Intermediate favourable or lower, n (%)",
-    avoided_isup01 = "Avoided Intermediate favourable or lower, n (%)",
-    avoided_isup1 = "Avoided ISUP Grade 1 detection, n (%)",
-    specificity = "Specificity (95% CI)",
-    npv = "NPV (95% CI)",
-    detected_isup2p = "Detected Intermediate unfavourable or higher, n (%)",
-    missed_isup2p = "Missed Intermediate unfavourable or higher, n (%)",
-    missed_isup3p = "Missed ISUP Grade >=3, n (%)",
-    sensitivity = "Sensitivity (95% CI)",
-    ppv = "PPV (95% CI)"
-  )
+  table_3_labels <- make_gt_table_labels()$table_3_alt
   
   tbl |> 
     select(-avoided_isup1, -missed_isup3p) |> 
@@ -1140,4 +1080,60 @@ gt_table_3_alt <- function(tbl) {
                        cells_column_spanners())
     ) |> 
     tab_options(table.font.size = px(14))
+}
+
+
+
+
+make_gt_table_labels <- function() {
+  table_2_labels <- list(
+    sa = "Analysis",
+    stratum = "Stratum",
+    race = "Race",
+    nobs = "Men, n",
+    strategy = "Strategy",
+    threshold = "Threshold",
+    bx = "n",
+    p_ci = "% (95% CI)",
+    d = "n",
+    rse_ci = "Relative Sensitivity (95% CI)",
+    nd = "n",
+    rsp_ci = "Relative Specificity (95% CI)"
+  )
+  
+  table_3_labels <- list(
+    sa = "Analysis",
+    stratum = "Stratum",
+    nobs = "Men, n",
+    race = "Race",
+    strategy = "Strategy",
+    threshold = "Threshold",
+    performed_isup01 = "Performed ISUP Grade 1 or Benign biopsies, n (%)",
+    avoided_isup01 = "Avoided ISUP Grade 1 or Benign Biopsies, n (%)",
+    avoided_isup1 = "Avoided ISUP Grade 1 detection, n (%)",
+    specificity = "Specificity (95% CI)",
+    npv = "NPV (95% CI)",
+    detected_isup2p = "Detected ISUP Grade >=2, n (%)",
+    missed_isup2p = "Missed ISUP Grade >=2, n (%)",
+    missed_isup3p = "Missed ISUP Grade >=3, n (%)",
+    sensitivity = "Sensitivity (95% CI)",
+    ppv = "PPV (95% CI)"
+  )
+  
+  table_3_alt_labels <- modifyList(
+    table_3_labels,
+    list(
+      performed_isup01 = "Performed Intermediate favourable or lower, n (%)",
+      avoided_isup01 = "Avoided Intermediate favourable or lower, n (%)",
+      detected_isup2p = "Detected Intermediate unfavourable or higher, n (%)",
+      missed_isup2p = "Missed Intermediate unfavourable or higher, n (%)"
+    )
+  )
+  
+  list(
+    table_2 = table_2_labels,
+    table_3 = table_3_labels,
+    table_3_alt = table_3_alt_labels 
+  )
+  
 }

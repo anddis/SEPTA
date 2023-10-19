@@ -214,13 +214,6 @@ table_2_sa |>
 ## Table 3
 
 ```{r}
-first_row_table_3_sa <- map(
-  strata_vars, \(s)
-  map(split(septa_strata, septa_strata[[s]]), \(x)
-      make_first_row_table_3(x, d = "cb_isup2p"))
-)
-
-
 table_3_sa <- map(
   strata_vars, \(s)
   map(split(septa_strata, septa_strata[[s]]), \(dat)
@@ -241,15 +234,15 @@ table_3_sa |>
 Outcome: ISUP2+ on combined biopsy (SBx+TBx)
 
 ```{r message = FALSE, warning = FALSE}
-septa_roc <- bind_rows(
-  septa |> 
-    pivot_longer(cols = c(psa, risk_score)),
-  septa |> 
-    pivot_longer(cols = c(psa, risk_score)) |> 
-    mutate(race = "Overall")
+septa_with_overall <- bind_rows(
+  septa,
+  septa |> mutate(race = "Overall")
 ) |> 
-  mutate(race = factor(race, levels = c("Overall", levels(septa$race))),
-         text = ifelse(name == "psa", "PSA (ng/ml)", "Stockholm3"))
+  mutate(race = factor(race, levels = c("Overall", levels(septa$race)))) 
+
+septa_roc <- septa_with_overall |> 
+    pivot_longer(cols = c(psa, risk_score)) |> 
+  mutate(text = ifelse(name == "psa", "PSA (ng/ml)", "Stockholm3"))
 
 auc_roc_test <- make_table_auc(septa_roc, "cb_isup2p")
 
@@ -262,9 +255,9 @@ auc_roc_test |>
 Outcome: ISUP2+ on standard biopsy  
 
 ```{r message = FALSE, warning = FALSE}
-auc_roc_test_sa <- make_table_auc(filter(septa_roc, targeted_biopsy_performed == "No"), "sb_isup2p")
+auc_roc_test_notb <- make_table_auc(filter(septa_roc, targeted_biopsy_performed == "No"), "sb_isup2p")
 
-auc_roc_test_sa |> 
+auc_roc_test_notb |> 
   gt_table_auc()
 ```
 
@@ -291,10 +284,10 @@ Outcome: ISUP2+ on standard biopsy
 #| fig-width: 12
 #| fig-height: 10
 
-roc_plots_sa <- plot_roc_curves(sb_isup2p, septa_roc, auc_roc_test_sa) +
+roc_plots_notb <- plot_roc_curves(sb_isup2p, septa_roc, auc_roc_test_notb) +
   labs(title = "ROC curves for the Stockholm3 test and PSA (ng/ml) (in men without targeted biopsies)")
 
-roc_plots_sa
+roc_plots_notb
 ```
 
 
@@ -308,15 +301,7 @@ Outcome: ISUP2+ on combined biopsy (SBx+TBx)
 #| fig-width: 12
 #| fig-height: 10
 
-septa_calibration <- bind_rows(
-  septa,
-  septa |> 
-    mutate(race = "Overall")
-) |> 
-  mutate(race = factor(race, levels = c("Overall", levels(septa$race)))) 
-
-
-calibration_plots <- imap(split(septa_calibration, septa_calibration$race),
+calibration_plots <- imap(split(septa_with_overall, septa_with_overall$race),
                           \(x, y)   plot_calibration_curves(y = cb_isup2p,
                                                             p = (risk_score/100), # from S3M score to probability
                                                             data = x,
@@ -337,18 +322,18 @@ Outcome: ISUP2+ on standard biopsy
 ```{r}
 #| fig-width: 12
 #| fig-height: 10
-septa_calibration_sa <- filter(septa_calibration, 
-                               targeted_biopsy_performed == "No")
+septa_with_overall_notb <- filter(septa_with_overall, 
+                                 targeted_biopsy_performed == "No")
 
-calibration_plots_sa <- imap(split(septa_calibration_sa, septa_calibration_sa$race),
-                             \(x, y)   plot_calibration_curves(y = sb_isup2p,
-                                                               p = (risk_score/100), # from S3M score to probability
-                                                               data = x,
-                                                               xlab = "Predicted ISUP >=2 probability",
-                                                               ylab = "Observed ISUP >=2 probability",
-                                                               title = y)$plot$lowess)
+calibration_plots_notb <- imap(split(septa_with_overall_notb, septa_with_overall_notb$race),
+                               \(x, y)   plot_calibration_curves(y = sb_isup2p,
+                                                                 p = (risk_score/100), # from S3M score to probability
+                                                                 data = x,
+                                                                 xlab = "Predicted ISUP >=2 probability",
+                                                                 ylab = "Observed ISUP >=2 probability",
+                                                                 title = y)$plot$lowess)
 
-patchwork::wrap_plots(calibration_plots_sa, nrow = 2) +
+patchwork::wrap_plots(calibration_plots_notb, nrow = 2) +
   patchwork::plot_annotation(
     title = "Calibration plots for the Stockholm3 test (in men without targeted biopsies)"
   )
@@ -361,8 +346,8 @@ Outcome: ISUP2+ on combined biopsy (SBx+TBx)
 ```{r warning=FALSE, message=FALSE}
 #| fig-width: 12
 #| fig-height: 10
-dca_plots <- imap(split(septa_calibration, septa_calibration$race),
-                             \(x, y) plot_dca(x, y))
+dca_plots <- imap(split(septa_with_overall, septa_with_overall$race),
+                  \(x, y) plot_dca(x, y))
 
 patchwork::wrap_plots(dca_plots, nrow = 2) +
   patchwork::plot_annotation(
@@ -379,7 +364,7 @@ Outcome: ISUP2+ on combined biopsy (SBx+TBx)
 
 ```{r}
 map(
-  split(septa_calibration, septa_calibration$race), calculate_s3m_threshold_at_fixed_sens
+  split(septa_with_overall, septa_with_overall$race), calculate_s3m_threshold_at_fixed_sens
 ) |> bind_rows(.id = "race") |> 
   select(-FPF) |> 
   mutate(across(c(TPF, TNF), format_percent)) |> 
@@ -440,47 +425,43 @@ full_join(
 # Cancers missed/detected by race and blood test
 
 ```{r}
-cancers_missed_detected <- septa_calibration |> 
+cancers_missed_detected <- septa_with_overall |> 
   pivot_longer(cols = unname(bloodtests[-1])) |> 
   select(name, value, combined_grade_group, race) |> 
   mutate(value = factor(value, labels = make_factor_labels()$ny),
          name = factor(name, levels = bloodtests[-1],
                        labels = names(bloodtests[-1]))) |> 
   split(~ race) |> 
-  imap(\(s, n) tbl_strata(
-    select(s, -race),
-    strata = name,
-    .tbl_fun =
-      \(x) tbl_summary(x, by = value,
-                       label = list(combined_grade_group ~ "Combined biopsy"),
-                       all_categorical() ~ "{n}") |> 
-      modify_header(label = paste0("**", n, "**")),
-    .header = "**{strata}**"
-  ) |> 
-    as_gt() |> 
-    tab_options(table.font.size = px(14)))
-
-
-cancers_missed_detected[[1]]
-
-cancers_missed_detected[[2]]
-
-cancers_missed_detected[[3]]
-
-cancers_missed_detected[[4]]
-
-cancers_missed_detected[[5]]
+  imap(
+    \(s, n) tbl_strata(
+      select(s, -race),
+      strata = name,
+      .tbl_fun =
+        \(x) tbl_summary(x, by = value,
+                         label = list(combined_grade_group ~ "Combined biopsy"),
+                         all_categorical() ~ "{n}") |> 
+        modify_header(label = paste0("**", n, "**")),
+      .header = "**{strata}**"
+    ) |> 
+      as_gt() |> 
+      tab_options(table.font.size = px(14))
+  )
 ```
+
+```{r results='asis'}
+cancers_missed_detected
+```
+
 
 
 # Alternative biopsy outcome definition
 
 ```{r}
 septa_alternative_gg <- septa |> 
-  make_alternative_grade_group()
+  make_alternative_pca_vars()
 ```
 
-Cross-classification Combined biopsy GG versus Alternative outcome definition
+Cross-classification Combined biopsy GG versus Alternative biopsy outcome definition
 
 ```{r}
 with(septa_alternative_gg,
@@ -500,10 +481,10 @@ table_2_alt$out_df |>
 
 ```{r}
 table_3_alt <- imap(bloodtests, 
-                \(y, tl) make_row_table_3(dat = septa_alternative_gg, 
-                                          d = "al_isup2p", 
-                                          y = y, 
-                                          testlabel = tl)) 
+                    \(y, tl) make_row_table_3(dat = septa_alternative_gg, 
+                                              d = "al_isup2p", 
+                                              y = y, 
+                                              testlabel = tl)) 
 
 table_3_alt |> 
   map(`[[`, "out_df") |> 
@@ -541,6 +522,10 @@ table_3_race_alt |>
   gt_table_3_alt()
 
 ```
+
+## AUC
+
+TBD.
 
 
 # Session info
