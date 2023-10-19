@@ -59,12 +59,26 @@ table_1 <- septa |>
 table_1
 ```
 
+```{r}
+bloodtests <- c(`All` = "all", 
+                `PSA>=3` = "psa_3p", 
+                `PSA>=4` = "psa_4p", 
+                `Stockholm3>=11`= "s3_11p", 
+                `Stockholm3>=15` = "s3_15p")
+
+bloodtests_table_2 <- bloodtests[c("PSA>=4", "Stockholm3>=15")]
+```
+
 
 # Table 2
 relative Sensitivity, relative Specificity.
 
 ```{r}
-table_2 <- make_table_2(septa, d = "cb_isup2p")
+table_2 <- make_table_2(septa, 
+                        d = "cb_isup2p", 
+                        y1 = bloodtests_table_2[1], 
+                        y2 = bloodtests_table_2[2], 
+                        testlabels = names(bloodtests_table_2))
 table_2$out_df |> 
   gt_table_2() 
 ```
@@ -73,9 +87,6 @@ table_2$out_df |>
 Sensitivity, Specificity, PPV, NPV.
 
 ```{r}
-bloodtests <- c(`All` = "all", `PSA>=3` = "psa_3p", `PSA>=4` = "psa_4p", 
-                `Stockholm3>=11`= "s3_11p", `Stockholm3>=15` = "s3_15p")
-
 table_3 <- imap(bloodtests, 
                 \(y, tl) make_row_table_3(dat = septa, 
                                           d = "cb_isup2p", 
@@ -92,7 +103,11 @@ table_3 |>
 ## Table 2 
 ```{r}
 table_2_race <- split(septa, septa$race) |> 
-  map(\(x) make_table_2(x, d = "cb_isup2p")) 
+  map(\(x) make_table_2(x, 
+                        d = "cb_isup2p",
+                        y1 = bloodtests_table_2[1], 
+                        y2 = bloodtests_table_2[2], 
+                        testlabels = names(bloodtests_table_2))) 
 
 table_2_race |> 
   map(`[[`, "out_df") |> 
@@ -203,7 +218,11 @@ strata_vars <- strata_vars |>
 
 table_2_sa <- map(strata_vars, \(s)
                   map(split(septa_strata, septa_strata[[s]]), \(dat)
-                      make_table_2(dat, "cb_isup2p")$out_df   
+                      make_table_2(dat, 
+                                   d = "cb_isup2p",
+                                   y1 = bloodtests_table_2[1], 
+                                   y2 = bloodtests_table_2[2], 
+                                   testlabels = names(bloodtests_table_2))$out_df   
                   ) |> bind_rows(.id = "stratum")
 ) |> bind_rows(.id = "sa")
 
@@ -471,7 +490,11 @@ with(septa_alternative_gg,
 
 ## Table 2
 ```{r}
-table_2_alt <- make_table_2(septa_alternative_gg, d = "al_isup2p")
+table_2_alt <- make_table_2(septa_alternative_gg, 
+                            d = "al_isup2p",
+                            y1 = bloodtests_table_2[1], 
+                            y2 = bloodtests_table_2[2], 
+                            testlabels = names(bloodtests_table_2))
 
 table_2_alt$out_df |> 
   gt_table_2_alt() 
@@ -496,7 +519,11 @@ table_3_alt |>
 
 ```{r}
 table_2_race_alt <- split(septa_alternative_gg, septa_alternative_gg$race) |> 
-  map(\(x) make_table_2(x, d = "al_isup2p")) 
+  map(\(x) make_table_2(x, 
+                        d = "al_isup2p",
+                        y1 = bloodtests_table_2[1], 
+                        y2 = bloodtests_table_2[2], 
+                        testlabels = names(bloodtests_table_2))) 
 
 table_2_race_alt |> 
   map(`[[`, "out_df") |> 
@@ -522,10 +549,6 @@ table_3_race_alt |>
   gt_table_3_alt()
 
 ```
-
-## AUC
-
-TBD.
 
 
 # Session info

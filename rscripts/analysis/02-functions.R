@@ -531,33 +531,34 @@ tidy_sesp.rel <- function(x) {
 }
 
 
-make_table_2 <- function(dat, d) {
-  na.fail(list(dat[[d]], dat[["psa_4p"]], dat[["s3_15p"]]))
+make_table_2 <- function(dat, d, y1, y2, testlabels) {
+  na.fail(list(dat[[d]], dat[[y1]], dat[[y2]]))
 
-  d <- dat[[d]]
-  tt <- tab.paired(d = d, y1 = psa_4p, y2 = s3_15p, data = dat)
+  yy1 <- dat[[y1]]
+  yy2 <- dat[[y2]]
+  dd <- dat[[d]]
+  tt <- tab.paired(d = dd, y1 = yy1, y2 = yy2, testnames = testlabels)
   ttsum <- tt$diseased + tt$non.diseased
   
   nobs <-  c(nobs = ttsum["Total", "Total"])
   
-  psa_4p_bx <- tidy_binom.test(binom.test(ttsum["Total", "Test1 pos."], ttsum["Total", "Total"]))
-  s3_15p_bx <- tidy_binom.test(binom.test(ttsum["Test2 pos.", "Total"], ttsum["Total", "Total"]))
+  test1_bx <- tidy_binom.test(binom.test(ttsum["Total", "Test1 pos."], ttsum["Total", "Total"]))
+  test2_bx <- tidy_binom.test(binom.test(ttsum["Test2 pos.", "Total"], ttsum["Total", "Total"]))
   
   res <- sesp.rel(tt)
   tidy_res <- tidy_sesp.rel(res)
-  psa_4p_sesp <- c(d = tt$diseased["Total", "Test1 pos."], rse_ci = "ref.", nd = tt$non.diseased["Total", "Test1 neg."], rsp_ci = "ref.")
-  s3_15p_sesp <- c(d = tt$diseased["Test2 pos.", "Total"], rse_ci = tidy_res$sensitivity, nd = tt$non.diseased["Test2 neg.", "Total"], rsp_ci = tidy_res$specificity)
+  test1_res <- c(d = tt$diseased["Total", "Test1 pos."], rse_ci = "ref.", nd = tt$non.diseased["Total", "Test1 neg."], rsp_ci = "ref.")
+  test2_res <- c(d = tt$diseased["Test2 pos.", "Total"], rse_ci = tidy_res$sensitivity, nd = tt$non.diseased["Test2 neg.", "Total"], rsp_ci = tidy_res$specificity)
+
+  first_two_columns_df <- data.frame(testlabels = testlabels) |> 
+    separate_wider_regex(testlabels, patterns = c(strategy = ".*", threshold = ">=.*"))
   
-  first_two_columns_df <- data.frame(strategy = c("PSA", "Stockholm3"),
-                                     threshold = c(">=4", ">=15"))
-  
-  
-  out_df <- cbind(
+ out_df <- cbind(
     first_two_columns_df,
     as.data.frame(
       cbind(nobs,
-            rbind(psa_4p_bx,   s3_15p_bx),
-            rbind(psa_4p_sesp, s3_15p_sesp)
+            rbind(test1_bx, test2_bx),
+            rbind(test1_res, test2_res)
       )
     )
   )
@@ -612,12 +613,8 @@ make_row_table_3 <- function(dat, d, y, testlabel) {
     ppv =                paste0(format_percent(ope$ppv["est"]), " (", format_percent(ope$ppv["lcl"]), "-",  format_percent(ope$ppv["ucl"]), ")")
   )
   
-  position_ge <- gregexpr(pattern = ">=", out["testlabel"])[[1]][1]
-  length_testlabel <- unname(nchar(out["testlabel"]))
-  
   out_df <- as.data.frame(as.list(out)) |> 
-   separate_wider_position(testlabel, c(strategy = position_ge-1, 
-                                        threshold = length_testlabel-position_ge+1))
+    separate_wider_regex(testlabel, patterns = c(strategy = ".*", threshold = ">=.*"))
   
   return(
     list(
