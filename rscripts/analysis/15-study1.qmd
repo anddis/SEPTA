@@ -23,6 +23,9 @@ execute:
   echo: false
 editor_options: 
   chunk_output_type: console
+params:
+  save_docx: "false"
+  time: "xxx"
 ---
 
 ```{r, include=FALSE}
@@ -43,13 +46,15 @@ septa_with_overall <- bind_rows(
   septa |> mutate(race = "Overall")
 ) |> 
   mutate(race = factor(race, levels = c("Overall", levels(septa$race)))) 
+
+tables_list <- vector(mode = "list")
 ```
 
 Derived data time stamp: ``r format(attr(septa, "datetime_created"), usetz = TRUE)``.
 
 # Table 1
 ```{r}
-table_1 <- septa |>
+tables_list$table_1 <- septa |>
   make_table1_vars() |> 
   select(race, race2, age, psa, risk_score, dre_abnormal, fhpca, prevbx, five_ari, 
          risk_score, targeted_biopsy_performed, pirads3p, pirads4p, piradsns, 
@@ -63,7 +68,7 @@ table_1 <- septa |>
   as_gt() |> 
   tab_options(table.font.size = px(14))
 
-table_1
+tables_list$table_1
 ```
 
 ```{r}
@@ -98,10 +103,11 @@ table_2 <- split(septa_with_overall, septa_with_overall$race) |>
                         y2 = bloodtests_table_2[2], 
                         testlabels = names(bloodtests_table_2))) 
 
-table_2 |> 
+tables_list$table_2 <- table_2 |> 
   map(`[[`, "out_df") |> 
   bind_rows(.id = "race") |> 
   gt_table_2()
+tables_list$table_2
 ```
 
 ```{r}
@@ -153,12 +159,13 @@ table_3 <- split(septa_with_overall, septa_with_overall$race) |>
       )
   )
 
-table_3 |> 
+tables_list$table_3 <- table_3 |> 
   map(
     \(r) map(r, `[[`, "out_df") |> bind_rows()
   ) |> 
   bind_rows(.id = "race") |> 
   gt_table_3()
+tables_list$table_3
 ```
 
 
@@ -223,8 +230,9 @@ table_2_sa <- map(strata_vars, \(s)
                   ) |> bind_rows(.id = "stratum")
 ) |> bind_rows(.id = "sa")
 
-table_2_sa |> 
+tables_list$table_2_sa <- table_2_sa |> 
   gt_table_2()
+tables_list$table_2_sa
 ```
 
 ## Table 3
@@ -239,8 +247,9 @@ table_3_sa <- map(
   ) |> bind_rows(.id = "stratum")
 ) |> bind_rows(.id = "sa")
 
-table_3_sa |> 
+tables_list$table_3_sa <- table_3_sa |> 
   gt_table_3()
+tables_list$table_3_sa
 ```
 
 # AUC
@@ -259,8 +268,9 @@ Outcome: ISUP2+ on combined biopsy (SBx+TBx)
 ```{r message = FALSE, warning = FALSE}
 auc_roc_test <- make_table_auc(septa_roc, "cb_isup2p")
 
-auc_roc_test |> 
+tables_list$auc_roc_test <- auc_roc_test |> 
   gt_table_auc()
+tables_list$auc_roc_test
 ```
 
 ## Combined biopsy, alternative outcome definition
@@ -270,8 +280,9 @@ Outcome: Intermediate unfavourable or higher cancers
 ```{r message = FALSE, warning = FALSE}
 auc_roc_test_iu <- make_table_auc(septa_roc, "al_isup2p")
 
-auc_roc_test_iu |> 
+tables_list$auc_roc_test_iu <- auc_roc_test_iu |> 
   gt_table_auc()
+tables_list$auc_roc_test_iu
 ```
 
 ## Standard biopsy in men without targeted biopses
@@ -426,7 +437,7 @@ patchwork::wrap_plots(dca_plots, nrow = 2) +
 Outcome: ISUP2+ on combined biopsy (SBx+TBx) 
 
 ```{r}
-map(
+tables_list$s3m_fixed_sens_90 <- map(
   split(septa_with_overall, septa_with_overall$race), calculate_s3m_threshold_at_fixed_sens
 ) |> bind_rows(.id = "race") |> 
   select(-FPF) |> 
@@ -445,6 +456,7 @@ map(
   ) |> 
   tab_options(table.font.size = px(14))
 
+tables_list$s3m_fixed_sens_90
 ```
 
 
@@ -452,7 +464,7 @@ map(
 # Table year/recruitment/targeted biopsy
 
 ```{r}
-full_join(
+tables_list$table_year_recruitment_tbx <- full_join(
   septa_strata |> 
     count(biopsy_year, strata_septa, .drop = FALSE) |> 
     pivot_wider(names_from = "strata_septa", values_from = "n",names_prefix = "septa_"),
@@ -483,6 +495,8 @@ full_join(
                      cells_column_spanners())
   ) |> 
   tab_options(table.font.size = px(14))
+
+tables_list$table_year_recruitment_tbx
 ```
 
 # Cancers missed/detected by race and blood test
@@ -515,6 +529,11 @@ cancers_missed_detected <- septa_with_overall |>
 cancers_missed_detected
 ```
 
+```{r}
+names(cancers_missed_detected) <- paste0("cancers_missed_detected_", names(cancers_missed_detected))
+tables_list <- c(tables_list, cancers_missed_detected)
+```
+
 
 
 # Alternative biopsy outcome definition
@@ -537,10 +556,12 @@ table_2_alt <- split(septa_with_overall, septa_with_overall$race) |>
                         y2 = bloodtests_table_2[2], 
                         testlabels = names(bloodtests_table_2))) 
 
-table_2_alt |> 
+tables_list$table_2_alt <- table_2_alt |> 
   map(`[[`, "out_df") |> 
   bind_rows(.id = "race") |> 
   gt_table_2_alt()
+
+tables_list$table_2_alt
 ```
 
 ## Table 3
@@ -554,12 +575,14 @@ table_3_alt <- split(septa_with_overall, septa_with_overall$race) |>
       )
   )
 
-table_3_alt |> 
+tables_list$table_list_alt <- table_3_alt |> 
   map(
     \(r) map(r, `[[`, "out_df") |> bind_rows()
   ) |> 
   bind_rows(.id = "race") |> 
   gt_table_3_alt()
+
+tables_list$table_list_alt
 ```
 
 
@@ -573,13 +596,20 @@ table_2_11vs3 <- split(septa_with_overall, septa_with_overall$race) |>
                         y2 = bloodtests_table_2_11vs3[2], 
                         testlabels = names(bloodtests_table_2_11vs3))) 
 
-table_2_11vs3 |> 
+tables_list$table_2_11vs3 <- table_2_11vs3 |> 
   map(`[[`, "out_df") |> 
   bind_rows(.id = "race") |> 
   gt_table_2()
+
+tables_list$table_2_11vs3
 ```
 
 
+```{r}
+if(params$save_docx == "true") {
+  gt_group(.list= tables_list) |> gtsave(here::here("output", paste0(params$time, "-septa_tables_study1.docx")))
+}
+```
 
 
 # Session info
