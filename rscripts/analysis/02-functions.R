@@ -451,6 +451,15 @@ make_alternative_pca_vars <- function(dat) {
   dat$al_isup2p <- as.integer(dat$alternative_grade_group >= "Unfavourable intermediate")
   dat$al_isup3p <- as.integer(dat$alternative_grade_group >= "Unfavourable intermediate") # needed to make make_row_table_3() work
   
+  labels <- tribble( # add as needed
+    ~var,                ~label,
+    "al_isup2p",         "Unfavourable intermediate or higher cancer",
+  )
+  
+  dat <- labelled::set_variable_labels(dat,
+                                       .labels = setNames(as.list(labels$label), labels$var), 
+                                       .strict = FALSE)
+  
   dat
     
 }
@@ -482,6 +491,13 @@ make_table1_vars <- function(dat) {
     .default = NA
   )
   
+  # 5ARI
+  dat$five_ari <- case_when(
+    dat$five_ari == "Yes" ~ 1,
+    dat$five_ari == "No" ~ 0,
+    .default = NA
+  )
+  
   # MRI PIRADS
   dat$pirads3p <- as.integer(dat$pirads_score >= "PIRADS3")
   dat$pirads4p <- as.integer(dat$pirads_score >= "PIRADS4")
@@ -492,6 +508,7 @@ make_table1_vars <- function(dat) {
     "fhpca",             "Family history of prostate cancer",
     "prevbx",            "Previous negative biopsy",
     "dre_abnormal",      "Abnormal DRE",
+    "five_ari",          "5-alpha reductase inhibitors use",
     "pirads3p",          "PI-RADS score >=3",
     "pirads4p",          "PI-RADS score >=4",
     "piradsns",          "PI-RADS score missing"
@@ -631,14 +648,14 @@ make_first_row_table_3 <- function(dat, d) {
     strategy =           "All",
     threshold =          "None",
     nobs =               length(d),
-    performed_isup01 = paste0(sum(1-d), " (100%)"),
-    avoided_isup01 =  "0 (0%)",  
-    avoided_isup1 =   "0 (0%)",
+    performed_isup01 =   paste0(sum(1-d), " (100%)"),
+    avoided_isup01 =     "0 (0%)",  
+    avoided_isup1 =      "0 (0%)",
     specificity =        "0%",
     npv =                "—",
-    detected_isup2p = paste0(sum(d), " (100%)"),
-    missed_isup2p =   "0 (0%)",
-    missed_isup3p =   "0 (0%)",
+    detected_isup2p =    paste0(sum(d), " (100%)"),
+    missed_isup2p =      "0 (0%)",
+    missed_isup3p =      "0 (0%)",
     sensitivity =        "100%",
     ppv =                "—"
   )
@@ -693,8 +710,8 @@ gt_table_3 <- function(tbl) {
 }
 
 
-make_figure_1 <- function(dat, title) {
-  ggplot(data = dat, 
+plot_figure_1 <- function(dat, title, panel) {
+  step1 <- ggplot(data = dat, 
          aes(y = race, x = rel)) +
     geom_linerange(aes(xmin = lcl.rel, xmax = ucl.rel), 
                    linewidth = c(5, rep(3, 4)), 
@@ -716,14 +733,20 @@ make_figure_1 <- function(dat, title) {
     labs(x = NULL,
          y = NULL,
          title = title,
-         subtitle = "Stockholm3 ≥15 versus PSA ≥4 ng/ml") +
-    annotation_custom(grid::textGrob("Stockholm3 better", gp=grid::gpar(fontsize = 12)),
-                      ymin=-0.9, ymax=-0.9, xmin=0.4, xmax=0.4) +
-    annotation_custom(grid::textGrob("PSA better", gp=grid::gpar(fontsize = 12)),
-                      ymin=-0.9, ymax=-0.9, xmin=-0.3, xmax=-0.3)
-  # +
-  #   annotation_custom(grid::textGrob("Noninferiority\nmargin", gp=grid::gpar(fontsize = 9)),
-  #                     ymin=-1.1, ymax=-1.1, xmin=-0.22, xmax=-0.22)
+         subtitle = "Stockholm3 ≥15 versus PSA ≥4 ng/ml") 
+  
+  if(panel == "rsens") {
+    step1 +
+        annotation_custom(grid::textGrob("Noninferiority\nmargin", gp=grid::gpar(fontsize = 9)),
+                          ymin=-1.1, ymax=-1.1, xmin=-0.22, xmax=-0.22)
+  } else if (panel == "rspec") {
+    step1 +
+      annotation_custom(grid::textGrob("Stockholm3 better", gp=grid::gpar(fontsize = 12)),
+                        ymin=-0.9, ymax=-0.9, xmin=0.4, xmax=0.4) +
+      annotation_custom(grid::textGrob("PSA better", gp=grid::gpar(fontsize = 12)),
+                        ymin=-0.9, ymax=-0.9, xmin=-0.3, xmax=-0.3)
+      
+  }
 }
 
 
@@ -739,6 +762,8 @@ make_strata_vars <- function(dat) {
                                                       extra_levels = "Don't know")
   dat$strata_fhpca <- fct_na_level_to_value(dat$family_hx_pca, 
                                             extra_levels = "Don't know")
+  dat$strata_5ari <- fct_na_level_to_value(dat$five_ari, 
+                                           extra_levels = "Don't know")
   dat$strata_age65 <- factor(dat$age >= 65, 
                              labels = factor_labels$ny)
   dat$strata_pp <- factor(dat$exclusion_met == 1 & dat$age >= 45 & dat$age <= 75,
@@ -751,6 +776,7 @@ make_strata_vars <- function(dat) {
     "strata_tbx",             "Men with targeted biopsies",
     "strata_previous_biopsy", "Men which are repeat biopsies",
     "strata_fhpca",           "Men with a family history of prostate cancer",
+    "strata_5ari",            "Men using 5-alpha reductase inhibitors",
     "strata_age65",           "Men >=65 years old",
     "strata_pp",              "Per Protocol",
     "strata_septa",           "Men specifically recruited for SEPTA"
