@@ -56,7 +56,7 @@ Derived data time stamp: ``r format(attr(septa, "datetime_created"), usetz = TRU
 ```{r}
 tables_list$table_1 <- septa |>
   make_table1_vars() |> 
-  select(race, race2, age, psa, risk_score, dre_abnormal, fhpca, prevbx, five_ari, 
+  select(race, race_copy, age, psa, risk_score, dre_abnormal, fhpca, prevbx, five_ari, 
          risk_score, targeted_biopsy_performed, pirads3p, pirads4p, piradsns, 
          cb_benign, cb_isup1, cb_isup2p, al_isup2p, cb_isup3p) |> 
   tbl_summary(by = race,
@@ -80,6 +80,8 @@ bloodtests <- c(`All` = "all",
 
 bloodtests_table_2 <- bloodtests[c("PSA>=4", "Stockholm3>=15")]
 bloodtests_table_2_11vs3 <- bloodtests[c("PSA>=3", "Stockholm3>=11")]
+bloodtests_table_2_15vs3 <- bloodtests[c("PSA>=3", "Stockholm3>=15")]
+
 ```
 
 
@@ -87,15 +89,6 @@ bloodtests_table_2_11vs3 <- bloodtests[c("PSA>=3", "Stockholm3>=11")]
 relative Sensitivity, relative Specificity.
 
 ```{r}
-# table_2 <- make_table_2(septa, 
-#                         d = "cb_isup2p", 
-#                         y1 = bloodtests_table_2[1], 
-#                         y2 = bloodtests_table_2[2], 
-#                         testlabels = names(bloodtests_table_2))
-# table_2$out_df |> 
-#   gt_table_2() 
-#   
-
 table_2 <- split(septa_with_overall, septa_with_overall$race) |> 
   map(\(x) make_table_2(x, 
                         d = "cb_isup2p",
@@ -107,29 +100,28 @@ tables_list$table_2 <- table_2 |>
   map(`[[`, "out_df") |> 
   bind_rows(.id = "race") |> 
   gt_table_2()
+
 tables_list$table_2
 ```
 
 ```{r}
+contrast_matrix <- matrix(c(1, -1,  0,  0, 
+                            1,  0, -1,  0, 
+                            1,  0,  0, -1), 
+                          ncol = 4, 
+                          byrow = TRUE)
+
 log.rel.sens_race <- log(sapply(table_2, `[[`, c("result", "sensitivity", "rel.sens")))[levels(septa$race)]
 se.log.rel.sens_race  <- sapply(table_2, `[[`, c("result", "sensitivity", "se.log.rel.sens"))[levels(septa$race)]
 chi2.rel.sens_race <- aod::wald.test(Sigma = diag(se.log.rel.sens_race^2), 
                                      b = log.rel.sens_race, 
-                                     L = matrix(c(1, -1,  0,  0, 
-                                                  1,  0, -1,  0, 
-                                                  1,  0,  0, -1), 
-                                                ncol = 4, 
-                                                byrow = TRUE))
+                                     L = contrast_matrix)
 
 log.rel.spec_race <- log(sapply(table_2, `[[`, c("result", "specificity", "rel.spec")))[levels(septa$race)]
 se.log.rel.spec_race  <- sapply(table_2, `[[`, c("result", "specificity", "se.log.rel.spec"))[levels(septa$race)]
 chi2.rel.spec_race <- aod::wald.test(Sigma = diag(se.log.rel.spec_race^2), 
                                      b = log.rel.spec_race, 
-                                     L = matrix(c(1, -1,  0,  0, 
-                                                  1,  0, -1,  0, 
-                                                  1,  0,  0, -1), 
-                                                ncol = 4, 
-                                                byrow = TRUE))
+                                     L = contrast_matrix)
 ```
 
 P-value for heterogeneity (relative Sensitivity): `r format.pval(chi2.rel.sens_race$result$chi2["P"], digits = 2)` [ We had no evidence to reject the null hypothesis that relative Sensitivity was equal for the four race groups. / We had no evidence to conclude that relative Sensitivity was different across the four race groups. ] 
@@ -141,17 +133,6 @@ P-value for heterogeneity (relative Specificity): `r format.pval(chi2.rel.spec_r
 Sensitivity, Specificity, PPV, NPV.
 
 ```{r}
-# table_3 <- imap(bloodtests, 
-#                 \(y, tl) make_row_table_3(dat = septa, 
-#                                           d = "cb_isup2p", 
-#                                           y = y, 
-#                                           testlabel = tl)) 
-# 
-# table_3 |> 
-#   map(`[[`, "out_df") |> 
-#   bind_rows() |> 
-#   gt_table_3()
-
 table_3 <- split(septa_with_overall, septa_with_overall$race) |> 
   map(\(x)
       imap(bloodtests, 
@@ -165,6 +146,7 @@ tables_list$table_3 <- table_3 |>
   ) |> 
   bind_rows(.id = "race") |> 
   gt_table_3()
+
 tables_list$table_3
 ```
 
@@ -216,9 +198,8 @@ patchwork::wrap_plots(panel_rel.sens,
 ## Table 2
 ```{r}
 septa_strata <- make_strata_vars(septa)
-strata_vars <- names(septa_strata)[grep("^strata_", names(septa_strata))]
-strata_vars <- strata_vars |> 
-  set_names(labelled::var_label(septa_strata[, strata_vars]))
+strata_vars <- names(septa_strata)[startsWith(names(septa_strata), "strata_")]
+strata_vars <- setNames(strata_vars, labelled::var_label(septa_strata[, strata_vars]))
 
 table_2_sa <- map(strata_vars, \(s)
                   map(split(septa_strata, septa_strata[[s]]), \(dat)
@@ -232,6 +213,7 @@ table_2_sa <- map(strata_vars, \(s)
 
 tables_list$table_2_sa <- table_2_sa |> 
   gt_table_2()
+
 tables_list$table_2_sa
 ```
 
@@ -249,6 +231,7 @@ table_3_sa <- map(
 
 tables_list$table_3_sa <- table_3_sa |> 
   gt_table_3()
+
 tables_list$table_3_sa
 ```
 
@@ -256,7 +239,7 @@ tables_list$table_3_sa
 
 ```{r}
 septa_roc <- septa_with_overall |> 
-    pivot_longer(cols = c(psa, risk_score)) |> 
+  pivot_longer(cols = c(psa, risk_score)) |> 
   mutate(text = ifelse(name == "psa", "PSA (ng/ml)", "Stockholm3"))
 ```
 
@@ -270,18 +253,20 @@ auc_roc_test <- make_table_auc(septa_roc, "cb_isup2p")
 
 tables_list$auc_roc_test <- auc_roc_test |> 
   gt_table_auc()
+
 tables_list$auc_roc_test
 ```
 
 ## Combined biopsy, alternative outcome definition
 
-Outcome: Intermediate unfavourable or higher cancers
+Outcome: unfavourable intermediate or higher cancers
 
 ```{r message = FALSE, warning = FALSE}
 auc_roc_test_iu <- make_table_auc(septa_roc, "al_isup2p")
 
 tables_list$auc_roc_test_iu <- auc_roc_test_iu |> 
   gt_table_auc()
+
 tables_list$auc_roc_test_iu
 ```
 
@@ -315,16 +300,16 @@ roc_plots
 
 ## Combined biopsy, alternative outcome definition
 
-Outcome: Intermediate unfavourable or higher cancers
+Outcome: unfavourable intermediate or higher cancers
 
 ```{r}
 #| fig-width: 12
 #| fig-height: 10
 
-roc_plots <- plot_roc_curves(al_isup2p, septa_roc, auc_roc_test_iu) +
-  labs(title = "ROC curves for the Stockholm3 test and PSA (ng/ml) (Intermediate Unfavourable or higher cancers)")
+roc_plots_iu <- plot_roc_curves(al_isup2p, septa_roc, auc_roc_test_iu) +
+  labs(title = "ROC curves for the Stockholm3 test and PSA (ng/ml) (Unfavourable Intermediate or higher cancers)")
 
-roc_plots
+roc_plots_iu
 ```
 
 ## Standard biopsy in men without targeted biopses
@@ -362,29 +347,29 @@ calibration_plots <- imap(split(septa_with_overall, septa_with_overall$race),
 
 patchwork::wrap_plots(calibration_plots, nrow = 2) +
   patchwork::plot_annotation(
-    title = "Calibration plots for the Stockholm3 test"
+    title = "Calibration plots for the Stockholm3 test (ISUP>=2 cancers)"
   )
 ```
 
 ## Combined biopsy, alternative outcome definition
 
-Outcome: Intermediate unfavourable or higher cancers
+Outcome: unfavourable intermediate or higher cancers
 
 ```{r}
 #| fig-width: 12
 #| fig-height: 10
 
-calibration_plots <- imap(split(septa_with_overall, septa_with_overall$race),
-                          \(x, y)   plot_calibration_curves(y = al_isup2p,
-                                                            p = (risk_score/100), # from S3M score to probability
-                                                            data = x,
-                                                            xlab = "Predicted Interm. Unfav. or higher probability",
-                                                            ylab = "Observed Interm Unfav. or higher probability",
-                                                            title = y)$plot$lowess)
+calibration_plots_iu <- imap(split(septa_with_overall, septa_with_overall$race),
+                             \(x, y)   plot_calibration_curves(y = al_isup2p,
+                                                               p = (risk_score/100), # from S3M score to probability
+                                                               data = x,
+                                                               xlab = "Predicted Unfav. Interm. or higher probability",
+                                                               ylab = "Observed Unfav. Interm. or higher probability",
+                                                               title = y)$plot$lowess)
 
-patchwork::wrap_plots(calibration_plots, nrow = 2) +
+patchwork::wrap_plots(calibration_plots_iu, nrow = 2) +
   patchwork::plot_annotation(
-    title = "Calibration plots for the Stockholm3 test"
+    title = "Calibration plots for the Stockholm3 test (Unfavourable Intermediate or higher cancers)"
   )
 ```
 
@@ -397,7 +382,7 @@ Outcome: ISUP2+ on standard biopsy
 #| fig-width: 12
 #| fig-height: 10
 septa_with_overall_notb <- filter(septa_with_overall, 
-                                 targeted_biopsy_performed == "No")
+                                  targeted_biopsy_performed == "No")
 
 calibration_plots_notb <- imap(split(septa_with_overall_notb, septa_with_overall_notb$race),
                                \(x, y)   plot_calibration_curves(y = sb_isup2p,
@@ -571,22 +556,27 @@ tables_list$table_2_alt
 table_3_alt <- split(septa_with_overall, septa_with_overall$race) |> 
   map(\(x)
       imap(bloodtests, 
-           \(y, tl) make_row_table_3(dat = x, d = "al_isup2p", y = y, testlabel = tl)
+           \(y, tl) make_row_table_3(dat = x, 
+                                     d = "al_isup2p", 
+                                     y = y, 
+                                     testlabel = tl)
       )
   )
 
-tables_list$table_list_alt <- table_3_alt |> 
+tables_list$table_3_alt <- table_3_alt |> 
   map(
     \(r) map(r, `[[`, "out_df") |> bind_rows()
   ) |> 
   bind_rows(.id = "race") |> 
   gt_table_3_alt()
 
-tables_list$table_list_alt
+tables_list$table_3_alt
 ```
 
-
 # Table 2 for Stockholm3≥11 vs PSA≥3 ng/ml
+
+Outcome: ISUP2+ on combined biopsy (SBx+TBx)
+
 ```{r}
 
 table_2_11vs3 <- split(septa_with_overall, septa_with_overall$race) |> 
@@ -604,10 +594,31 @@ tables_list$table_2_11vs3 <- table_2_11vs3 |>
 tables_list$table_2_11vs3
 ```
 
+# Table 2 for Stockholm3≥15 vs PSA≥3 ng/ml
+
+Outcome: ISUP2+ on combined biopsy (SBx+TBx)
+
+```{r}
+
+table_2_15vs3 <- split(septa_with_overall, septa_with_overall$race) |> 
+  map(\(x) make_table_2(x, 
+                        d = "cb_isup2p",
+                        y1 = bloodtests_table_2_15vs3[1], 
+                        y2 = bloodtests_table_2_15vs3[2], 
+                        testlabels = names(bloodtests_table_2_15vs3))) 
+
+tables_list$table_2_15vs3 <- table_2_15vs3 |> 
+  map(`[[`, "out_df") |> 
+  bind_rows(.id = "race") |> 
+  gt_table_2()
+
+tables_list$table_2_15vs3
+```
 
 ```{r}
 if(params$save_docx == "true") {
-  gt_group(.list= tables_list) |> gtsave(here::here("output", paste0(params$time, "-septa_tables_study1.docx")))
+  gt_group(.list = tables_list) |> 
+    gtsave(here::here("output", paste0(params$time, "-septa_tables_study1.docx")))
 }
 ```
 

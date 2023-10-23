@@ -431,29 +431,29 @@ make_alternative_pca_vars <- function(dat) {
   dat$alternative_grade_group <- case_when(
     dat$combined_grade_group == "Benign" ~ "Benign",
     dat$combined_grade_group == "ISUP1" ~ "ISUP1",
-    dat$combined_grade_group == "ISUP2" & sbx_perc_pos >= 0.5 ~ "Unfavourable intermediate", 
-    dat$combined_grade_group == "ISUP2" & dat$psa > 10 ~ "Unfavourable intermediate",
-    dat$combined_grade_group == "ISUP2" ~ "Favourable intermediate",
-    dat$combined_grade_group == "ISUP3" ~ "Unfavourable intermediate",
+    dat$combined_grade_group == "ISUP2" & sbx_perc_pos >= 0.5 ~ "Unfavourable Intermediate", 
+    dat$combined_grade_group == "ISUP2" & dat$psa > 10 ~ "Unfavourable Intermediate",
+    dat$combined_grade_group == "ISUP2" ~ "Favourable Intermediate",
+    dat$combined_grade_group == "ISUP3" ~ "Unfavourable Intermediate",
     dat$combined_grade_group == "ISUP4" ~ "ISUP4",
     dat$combined_grade_group == "ISUP5" ~ "ISUP5"
   ) |> factor(levels = c("Benign", 
                          "ISUP1", 
-                         "Favourable intermediate",
-                         "Unfavourable intermediate", 
+                         "Favourable Intermediate",
+                         "Unfavourable Intermediate", 
                          "ISUP4", 
                          "ISUP5"),
               ordered = TRUE)
   
   # variable names below are to make make_row_table_3() work
   dat$al_isup1  <- as.integer(dat$alternative_grade_group == "ISUP1") # needed to make make_row_table_3() work
-  dat$al_isup01 <- as.integer(dat$alternative_grade_group <= "Favourable intermediate")
-  dat$al_isup2p <- as.integer(dat$alternative_grade_group >= "Unfavourable intermediate")
-  dat$al_isup3p <- as.integer(dat$alternative_grade_group >= "Unfavourable intermediate") # needed to make make_row_table_3() work
+  dat$al_isup01 <- as.integer(dat$alternative_grade_group <= "Favourable Intermediate")
+  dat$al_isup2p <- as.integer(dat$alternative_grade_group >= "Unfavourable Intermediate")
+  dat$al_isup3p <- as.integer(dat$alternative_grade_group >= "Unfavourable Intermediate") # needed to make make_row_table_3() work
   
   labels <- tribble( # add as needed
     ~var,                ~label,
-    "al_isup2p",         "Unfavourable intermediate or higher cancer",
+    "al_isup2p",         "Unfavourable Intermediate or higher cancer",
   )
   
   dat <- labelled::set_variable_labels(dat,
@@ -468,7 +468,7 @@ make_alternative_pca_vars <- function(dat) {
 make_table1_vars <- function(dat) {
   
   # Copy of Race
-  dat$race2 <- dat$race
+  dat$race_copy <- dat$race
   
   # FH PCa
   dat$fhpca <- case_when(
@@ -1007,8 +1007,8 @@ make_table_auc <- function(dat, outcome) {
 }
 
 
-gt_table_auc <- function(obj) {
-  obj |> 
+gt_table_auc <- function(tbl) {
+  tbl |> 
   gt() |> 
     cols_label(
       race = "Race",
@@ -1070,10 +1070,10 @@ gt_table_2_alt <- function(tbl) {
       label = "Performed Biopsies", columns = c("bx", "p_ci")
     ) |> 
     tab_spanner(
-      label = "Intermediate unfavourable or higher", columns = c("d", "rse_ci")
+      label = "Unfavourable Intermediate or higher", columns = c("d", "rse_ci")
     ) |> 
     tab_spanner(
-      label = "Intermediate favourable or lower", columns = c("nd", "rsp_ci")
+      label = "Favourable Intermediate or lower", columns = c("nd", "rsp_ci")
     )  |> 
     tab_spanner(
       label = "Cancer Detection", columns = c("d", "rse_ci", "nd", "rsp_ci")
@@ -1146,10 +1146,10 @@ make_gt_table_labels <- function() {
   table_3_alt_labels <- modifyList(
     table_3_labels,
     list(
-      performed_isup01 = "Performed Intermediate favourable or lower, n (%)",
-      avoided_isup01 = "Avoided Intermediate favourable or lower, n (%)",
-      detected_isup2p = "Detected Intermediate unfavourable or higher, n (%)",
-      missed_isup2p = "Missed Intermediate unfavourable or higher, n (%)"
+      performed_isup01 = "Performed Favourable Intermediate or lower, n (%)",
+      avoided_isup01 = "Avoided Favourable Intermediate or lower, n (%)",
+      detected_isup2p = "Detected Unfavourable Intermediate or higher, n (%)",
+      missed_isup2p = "Missed Unfavourable Intermediate or higher, n (%)"
     )
   )
   
