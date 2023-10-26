@@ -24,7 +24,7 @@ execute:
 editor_options: 
   chunk_output_type: console
 params:
-  save_docx: "false"
+  save_tables: "false"
   time: "xxx"
 ---
 
@@ -78,10 +78,9 @@ bloodtests <- c(`All` = "all",
                 `Stockholm3>=11`= "s3_11p", 
                 `Stockholm3>=15` = "s3_15p")
 
-bloodtests_table_2 <- bloodtests[c("PSA>=4", "Stockholm3>=15")]
+bloodtests_table_2       <- bloodtests[c("PSA>=4", "Stockholm3>=15")]
 bloodtests_table_2_11vs3 <- bloodtests[c("PSA>=3", "Stockholm3>=11")]
 bloodtests_table_2_15vs3 <- bloodtests[c("PSA>=3", "Stockholm3>=15")]
-
 ```
 
 
@@ -461,8 +460,8 @@ tables_list$table_year_recruitment_tbx <- full_join(
 ) |> 
   mutate(Total = septa_No + septa_Yes,
          septa_Yes = paste0(septa_Yes, " (", format_percent(septa_Yes/Total), ")"),
-         septa_No = paste0(septa_No, " (", format_percent(septa_No/Total), ")"),
-         tbx_Yes = paste0(tbx_Yes, " (", format_percent(tbx_Yes/Total), ")")) |> 
+         septa_No  = paste0(septa_No,  " (", format_percent(septa_No/Total),  ")"),
+         tbx_Yes   = paste0(tbx_Yes,   " (", format_percent(tbx_Yes/Total),   ")")) |> 
   gt() |> 
   cols_label(
     biopsy_year = "Year of biopsy",
@@ -616,7 +615,7 @@ tables_list$table_2_15vs3
 ```
 
 ```{r}
-if(params$save_docx == "true") {
+if(params$save_tables == "true") {
   gt_group(.list = tables_list) |> 
     gtsave(here::here("output", paste0(params$time, "-septa_tables_study1.docx")))
 }

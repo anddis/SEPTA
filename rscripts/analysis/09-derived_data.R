@@ -50,15 +50,6 @@ data_biopsy_year <- list(
     mutate(biopsy_year = as.numeric(biopsy_year))
 )
 
-# northwestern_biopsy_year <- data_raw$northwestern_biopsy_year |> 
-#   janitor::clean_names(parsing_option = 3) |> 
-#   mutate(across(where(is.character), tolower)) |> 
-#   mutate(across(where(is.character), \(x) trimws(x, "both", "[\\h\\v]")))
-# 
-# # data biopsy year uthsca
-# uthsca_biopsy_year <- data_raw$uthsca_biopsy_year |> 
-#   mutate(biopsy_year = as.numeric(biopsy_year))
-
 # data to update PIDs
 data_id <- data_raw[c(
   "uic_id",

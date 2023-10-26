@@ -220,7 +220,6 @@ process_data_nice <- function(dat, dat_name, data_id, data_s3, data_biopsy_year)
   
   dat <- left_join(dat, data_s3, by = "sthlm3_id")
   
-  #dat <- make_variables(dat)
   
   return(dat)
 }
@@ -382,7 +381,6 @@ process_data_notnice <- function(dat, data_id, data_s3, data_biopsy_year) {
   
   dat <- left_join(dat, data_s3, by = "sthlm3_id")
   
-  #dat <- make_variables(dat)
   
   return(dat)
 }
