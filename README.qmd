@@ -1,0 +1,16 @@
+---
+title: "The SEPTA STHLM3 trial"
+format: 
+  gfm
+editor_options: 
+  chunk_output_type: console
+---
+
+https://ki.se/en/meb/the-septa-sthlm3-trial
+
+
+
+```{r eval = FALSE, include = FALSE}
+fs::dir_tree()
+```
+
