@@ -81,6 +81,8 @@ bloodtests <- c(`All` = "all",
 bloodtests_table_2       <- bloodtests[c("PSA>=4", "Stockholm3>=15")]
 bloodtests_table_2_11vs3 <- bloodtests[c("PSA>=3", "Stockholm3>=11")]
 bloodtests_table_2_15vs3 <- bloodtests[c("PSA>=3", "Stockholm3>=15")]
+bloodtests_table_2_11vs4 <- bloodtests[c("PSA>=4", "Stockholm3>=11")]
+
 ```
 
 
@@ -613,6 +615,30 @@ tables_list$table_2_15vs3 <- table_2_15vs3 |>
 
 tables_list$table_2_15vs3
 ```
+
+
+# Table 2 for Stockholm3≥11 vs PSA≥4 ng/ml
+
+Outcome: ISUP2+ on combined biopsy (SBx+TBx)
+
+```{r}
+
+table_2_11vs4 <- split(septa_with_overall, septa_with_overall$race) |> 
+  map(\(x) make_table_2(x, 
+                        d = "cb_isup2p",
+                        y1 = bloodtests_table_2_11vs4[1], 
+                        y2 = bloodtests_table_2_11vs4[2], 
+                        testlabels = names(bloodtests_table_2_11vs4))) 
+
+tables_list$table_2_11vs4 <- table_2_11vs4 |> 
+  map(`[[`, "out_df") |> 
+  bind_rows(.id = "race") |> 
+  gt_table_2()
+
+tables_list$table_2_11vs4
+```
+
+
 
 ```{r}
 if(params$save_tables == "true") {

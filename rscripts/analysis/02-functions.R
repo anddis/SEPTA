@@ -28,8 +28,12 @@ make_factor_labels <- function() {
   ny <- c("No", "Yes") # 0 1
   isup <- c("Benign", paste0("ISUP", 1:5))
   pirads <- paste0("PIRADS", 1:5)
+  race <- c("Asian",                                # order in tables
+            "Black or African American", 
+            "Hispanic or Latino and White", 
+            "Non-Hispanic or Non-Latino and White")
   
-  list(nydn = nydn, ny = ny, isup = isup, pirads = pirads)
+  list(nydn = nydn, ny = ny, isup = isup, pirads = pirads, race = race)
 }
 
 # Process data stored in nice format
@@ -163,8 +167,8 @@ process_data_nice <- function(dat, dat_name, data_id, data_s3, data_biopsy_year)
   
   # Create factors according to data dictionary
   dat$race <- factor(dat$race, 
-                     levels = 1:4,
-                     labels = c("African/Black", "White Non-hispanic", "White Hispanic", "Asian"))
+                     levels = c(4, 1, 3, 2), # see data dictionary: 1, African/Black | 2, White Non-Hispanic | 3, White Hispanic | 4, Asian
+                     labels = factor_labels$race) # A, B/AA, H/L, W/C
   
   dat <- mutate(dat, across(any_of(c("family_hx_pca", "five_ari", "previous_biopsy")), 
                             \(x) factor(x,
@@ -259,7 +263,7 @@ process_data_notnice <- function(dat, data_id, data_s3, data_biopsy_year) {
   
   dat$race <- factor(dat$ethinicity,
                      levels = c("african american", "afro-caribbean", "european american", "west african"),
-                     labels = c("African/Black", "African/Black", "White Non-hispanic", "African/Black"))
+                     labels = factor_labels$race[c(2, 2, 4, 2)])
   
   dat$black_his <- factor(dat$ethinicity,
                           levels = c("afro-caribbean", "west african"),
@@ -591,7 +595,8 @@ make_row_table_3 <- function(dat, d, y, testlabel) {
   prefix <- substr(d, 1, 3)
   
   if (y == "all") {
-    out_df <- make_first_row_table_3(dat, d)
+    out_df <- make_first_row_table_3(dat, d, d_isup1 = paste0(prefix, "isup1")) 
+                                     
     
     return(
       list(
@@ -611,21 +616,22 @@ make_row_table_3 <- function(dat, d, y, testlabel) {
   tab3 <- addmargins(table(y, dat[[paste0(prefix, "isup2p")]]))
   tab4 <- addmargins(table(y, dat[[paste0(prefix, "isup3p")]]))
   
-  ope <- acc.1test(tab.1test(d = d, y = y, testname = testname))
   
-  out <- c(
+  ope <- acc.1test(tab.1test(d = d, y = y, testname = testname))
+
+    out <- c(
     testlabel =          testlabel,
     nobs =               ope$tab["Total", "Total"],
     performed_isup01 =   paste0(tab1["1", "1"], " (", format_percent(tab1["1", "1"]/tab1["Sum", "1"]), ")"),
-    avoided_isup01 =     paste0(tab1["0", "1"], " (", format_percent(tab1["0", "1"]/tab1["Sum", "1"]), ")"),
-    avoided_isup1 =      paste0(tab2["0", "1"], " (", format_percent(tab2["0", "1"]/tab2["Sum", "1"]), ")"),
+    #avoided_isup01 =    paste0(tab1["0", "1"], " (", format_percent(tab1["0", "1"]/tab1["Sum", "1"]), ")"), # specificity
+    performed_isup1 =    paste0(tab2["1", "1"], " (", format_percent(tab2["1", "1"]/tab2["Sum", "1"]), ")"),
     specificity =        paste0(format_percent(ope$specificity["est"]), " (", format_percent(ope$specificity["lcl"]), "-",  format_percent(ope$specificity["ucl"]), ")"),
-    npv =                paste0(format_percent(ope$npv["est"]), " (", format_percent(ope$npv["lcl"]), "-",  format_percent(ope$npv["ucl"]), ")"),
+    ppv =                paste0(format_percent(ope$ppv["est"]), " (", format_percent(ope$ppv["lcl"]), "-",  format_percent(ope$ppv["ucl"]), ")"),
     detected_isup2p =    paste0(tab3["1", "1"], " (", format_percent(tab3["1", "1"]/tab3["Sum", "1"]), ")"),
     missed_isup2p =      paste0(tab3["0", "1"], " (", format_percent(tab3["0", "1"]/tab3["Sum", "1"]), ")"),
     missed_isup3p =      paste0(tab4["0", "1"], " (", format_percent(tab4["0", "1"]/tab4["Sum", "1"]), ")"),
     sensitivity =        paste0(format_percent(ope$sensitivity["est"]), " (", format_percent(ope$sensitivity["lcl"]), "-",  format_percent(ope$sensitivity["ucl"]), ")"),
-    ppv =                paste0(format_percent(ope$ppv["est"]), " (", format_percent(ope$ppv["lcl"]), "-",  format_percent(ope$ppv["ucl"]), ")")
+    npv =                paste0(format_percent(ope$npv["est"]), " (", format_percent(ope$npv["lcl"]), "-",  format_percent(ope$npv["ucl"]), ")")
   )
   
   out_df <- as.data.frame(as.list(out)) |> 
@@ -639,23 +645,24 @@ make_row_table_3 <- function(dat, d, y, testlabel) {
   )
 }
 
-make_first_row_table_3 <- function(dat, d) {
+make_first_row_table_3 <- function(dat, d, d_isup1) {
   d <- dat[[d]]
+  d_isup1 <- dat[[d_isup1]]
   
   first_row <- c(
     strategy =           "All",
     threshold =          "None",
     nobs =               length(d),
     performed_isup01 =   paste0(sum(1-d), " (100%)"),
-    avoided_isup01 =     "0 (0%)",  
-    avoided_isup1 =      "0 (0%)",
+    #avoided_isup01 =     "0 (0%)",  
+    performed_isup1 =    paste0(sum(d_isup1), " (100%)"),
     specificity =        "0%",
-    npv =                "—",
+    ppv =                "—",
     detected_isup2p =    paste0(sum(d), " (100%)"),
     missed_isup2p =      "0 (0%)",
     missed_isup3p =      "0 (0%)",
     sensitivity =        "100%",
-    ppv =                "—"
+    npv =                "—"
   )
   
   as.data.frame(as.list(first_row))
@@ -853,7 +860,12 @@ plot_calibration_curves <- function (y, p, data,
                          lb = lower_invlogit, 
                          ub = upper_invlogit)
   
+  gs <- 0.90 # grey scale histogram
+  
   plot_lowess <- ggplot(data = data, aes(x = p, y = y)) +
+    geom_histogram(aes(y = after_stat(count / sum(count))),
+                   fill = grey(gs), col = grey(gs),
+                   breaks = seq(0, 1, by = 0.1)) +
     geom_abline(intercept = 0, slope = 1, col = "grey") +
     #   //Rug
     # geom_rug(data = filter(data, y == 0),
@@ -892,17 +904,21 @@ plot_calibration_curves <- function (y, p, data,
                     xlim = c(0,1)) +
     theme(aspect.ratio = 1, 
           panel.grid.minor = element_blank()) +
-    annotate("text", x = 0.65, y = 0.08,
-             label = paste0("Logistic calibration intercept: ", sprintf("%5.3f", coef(logistic_calibration_intercept)[1])), 
-             size = 3) +
-    annotate("text", x = 0.65, y = 0.03,
-             label = paste0("Logistic calibration slope: ", sprintf("%5.3f", coef(logistic_calibration_slope)[2])), 
-             size = 3) 
+    annotate("text", x = 0.32, y = 0.98,
+             label = paste0("Logistic calibration intercept: ", scales::number_format(style_negative = "minus", accuracy = 0.001)(coef(logistic_calibration_intercept)[1])), 
+             size = 3.5) +
+    annotate("text", x = 0.30, y = 0.93,
+             label = paste0("Logistic calibration slope: ", scales::number_format(style_negative = "minus", accuracy = 0.001)(coef(logistic_calibration_slope)[2])), 
+             size = 3.5) 
+  
   
   plot_glm <- 
     # //GLM splines
     ggplot(plot_dta,
            aes(x = x, y = y)) +
+    geom_histogram(aes(y = after_stat(count / sum(count))),
+                   fill = grey(gs), col = grey(gs),
+                   breaks = seq(0, 1, by = 0.1)) +
     geom_abline(intercept = 0, slope = 1, col = "grey") +
     geom_line(lwd = 1.5,
               col = "#E41A1C") +
@@ -933,12 +949,12 @@ plot_calibration_curves <- function (y, p, data,
                     xlim = c(0,1)) +
     theme(aspect.ratio = 1, 
           panel.grid.minor = element_blank()) +
-    annotate("text", x = 0.65, y = 0.08,
-             label = paste0("Logistic calibration intercept: ", sprintf("%5.3f", coef(logistic_calibration_intercept)[1])), 
-             size = 3) +
-    annotate("text", x = 0.65, y = 0.03,
-             label = paste0("Logistic calibration slope: ", sprintf("%5.3f", coef(logistic_calibration_slope)[2])), 
-             size = 3) 
+    annotate("text", x = 0.32, y = 0.98,
+             label = paste0("Logistic calibration intercept: ", scales::number_format(style_negative = "minus", accuracy = 0.001)(coef(logistic_calibration_intercept)[1])), 
+             size = 3.5) +
+    annotate("text", x = 0.30, y = 0.93,
+             label = paste0("Logistic calibration slope: ", scales::number_format(style_negative = "minus", accuracy = 0.001)(coef(logistic_calibration_slope)[2])), 
+             size = 3.5) 
   
   return(list(intercept = logistic_calibration_intercept, 
               slope = logistic_calibration_slope, 
@@ -964,7 +980,8 @@ plot_roc_curves <- function(y, dat, dat_auc_roc_test) {
          y = "Sensitivity",
          title = "ROC curves for the Stockholm3 test and PSA (ng/ml)") +
     theme(legend.position = "bottom",
-          legend.key.width = unit(3, "line"))
+          legend.key.width = unit(3, "line"),
+          strip.text = element_text(size = 13))
 }
 
 
@@ -999,8 +1016,8 @@ make_table_auc <- function(dat, outcome) {
     inner_join(nobs, by = "race") |> 
     mutate(race = factor(race, levels = c("Overall", levels(septa$race)))) |> 
     relocate(race, n, everything()) |> 
-    arrange(race)
-  
+    arrange(race) 
+
   return(auc_roc_test)
 }
 
@@ -1022,6 +1039,10 @@ gt_table_auc <- function(tbl) {
       style = cell_text(weight = "bold"),
       locations = list(cells_column_labels(),
                        cells_column_spanners())
+    ) |> 
+    cols_align(
+      align = "left",
+      columns = race
     ) |> 
     tab_options(table.font.size = px(14))
 }
@@ -1090,7 +1111,7 @@ gt_table_3_alt <- function(tbl) {
   table_3_labels <- make_gt_table_labels()$table_3_alt
   
   tbl |> 
-    select(-avoided_isup1, -missed_isup3p) |> 
+    select(-performed_isup1, -missed_isup3p) |> 
     gt() |> 
     (\(x) cols_label(x,
                      .list = table_3_labels[names(x[["_data"]])]
@@ -1111,7 +1132,7 @@ make_gt_table_labels <- function() {
     sa = "Analysis",
     stratum = "Stratum",
     race = "Race",
-    nobs = "Men, n",
+    nobs = "N",
     strategy = "Strategy",
     threshold = "Threshold",
     bx = "n",
@@ -1125,13 +1146,13 @@ make_gt_table_labels <- function() {
   table_3_labels <- list(
     sa = "Analysis",
     stratum = "Stratum",
-    nobs = "Men, n",
+    nobs = "N",
     race = "Race",
     strategy = "Strategy",
     threshold = "Threshold",
     performed_isup01 = "Performed ISUP Grade 1 or Benign biopsies, n (%)",
     avoided_isup01 = "Avoided ISUP Grade 1 or Benign Biopsies, n (%)",
-    avoided_isup1 = "Avoided ISUP Grade 1 detection, n (%)",
+    performed_isup1 = "Performed ISUP Grade 1 biopsies, n (%)",
     specificity = "Specificity (95% CI)",
     npv = "NPV (95% CI)",
     detected_isup2p = "Detected ISUP Grade >=2, n (%)",
