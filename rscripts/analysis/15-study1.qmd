@@ -78,11 +78,8 @@ bloodtests <- c(`All` = "all",
                 `Stockholm3>=11`= "s3_11p", 
                 `Stockholm3>=15` = "s3_15p")
 
-bloodtests_table_2       <- bloodtests[c("PSA>=4", "Stockholm3>=15")]
-bloodtests_table_2_11vs3 <- bloodtests[c("PSA>=3", "Stockholm3>=11")]
-bloodtests_table_2_15vs3 <- bloodtests[c("PSA>=3", "Stockholm3>=15")]
-bloodtests_table_2_11vs4 <- bloodtests[c("PSA>=4", "Stockholm3>=11")]
-
+bloodtests_table_2_psa4 <- bloodtests[c("PSA>=4", "Stockholm3>=11", "Stockholm3>=15")]
+bloodtests_table_2_psa3 <- bloodtests[c("PSA>=3", "Stockholm3>=11", "Stockholm3>=15")]
 ```
 
 
@@ -93,9 +90,10 @@ relative Sensitivity, relative Specificity.
 table_2 <- split(septa_with_overall, septa_with_overall$race) |> 
   map(\(x) make_table_2(x, 
                         d = "cb_isup2p",
-                        y1 = bloodtests_table_2[1], 
-                        y2 = bloodtests_table_2[2], 
-                        testlabels = names(bloodtests_table_2))) 
+                        y1 = bloodtests_table_2_psa4[1], 
+                        y2 = bloodtests_table_2_psa4[2],
+                        y3 = bloodtests_table_2_psa4[3],
+                        testlabels = names(bloodtests_table_2_psa4))) 
 
 tables_list$table_2 <- table_2 |> 
   map(`[[`, "out_df") |> 
@@ -105,6 +103,8 @@ tables_list$table_2 <- table_2 |>
 tables_list$table_2
 ```
 
+P-values for heterogeneity _for the main contrast Stockholm3≥15 versus PSA≥4_:
+
 ```{r}
 contrast_matrix <- matrix(c(1, -1,  0,  0, 
                             1,  0, -1,  0, 
@@ -112,14 +112,14 @@ contrast_matrix <- matrix(c(1, -1,  0,  0,
                           ncol = 4, 
                           byrow = TRUE)
 
-log.rel.sens_race <- log(sapply(table_2, `[[`, c("result", "sensitivity", "rel.sens")))[levels(septa$race)]
-se.log.rel.sens_race  <- sapply(table_2, `[[`, c("result", "sensitivity", "se.log.rel.sens"))[levels(septa$race)]
+log.rel.sens_race <- log(sapply(table_2, `[[`, c("result", "y1y3", "sensitivity", "rel.sens")))[levels(septa$race)]
+se.log.rel.sens_race  <- sapply(table_2, `[[`, c("result", "y1y3", "sensitivity", "se.log.rel.sens"))[levels(septa$race)]
 chi2.rel.sens_race <- aod::wald.test(Sigma = diag(se.log.rel.sens_race^2), 
                                      b = log.rel.sens_race, 
                                      L = contrast_matrix)
 
-log.rel.spec_race <- log(sapply(table_2, `[[`, c("result", "specificity", "rel.spec")))[levels(septa$race)]
-se.log.rel.spec_race  <- sapply(table_2, `[[`, c("result", "specificity", "se.log.rel.spec"))[levels(septa$race)]
+log.rel.spec_race <- log(sapply(table_2, `[[`, c("result", "y1y3", "specificity", "rel.spec")))[levels(septa$race)]
+se.log.rel.spec_race  <- sapply(table_2, `[[`, c("result", "y1y3", "specificity", "se.log.rel.spec"))[levels(septa$race)]
 chi2.rel.spec_race <- aod::wald.test(Sigma = diag(se.log.rel.spec_race^2), 
                                      b = log.rel.spec_race, 
                                      L = contrast_matrix)
@@ -161,9 +161,9 @@ tables_list$table_3
 
 data_panel_rel.sens <- data.frame(
   race = names(table_2),
-  rel = sapply(table_2, \(x) unname(x[["result"]][["sensitivity"]]["rel.sens"])),
-  lcl.rel = sapply(table_2, \(x) unname(x[["result"]][["sensitivity"]]["lcl.rel.sens"])),
-  ucl.rel = sapply(table_2, \(x) unname(x[["result"]][["sensitivity"]]["ucl.rel.sens"]))
+  rel = sapply(table_2, \(x) unname(x[["result"]][["y1y3"]][["sensitivity"]]["rel.sens"])),
+  lcl.rel = sapply(table_2, \(x) unname(x[["result"]][["y1y3"]][["sensitivity"]]["lcl.rel.sens"])),
+  ucl.rel = sapply(table_2, \(x) unname(x[["result"]][["y1y3"]][["sensitivity"]]["ucl.rel.sens"]))
 ) |> 
   mutate(race = factor(race, levels = rev(levels(septa_with_overall$race))))
 
@@ -175,9 +175,9 @@ panel_rel.sens <- plot_figure_1(dat = data_panel_rel.sens,
 
 data_panel_rel.spec <- data.frame(
   race = names(table_2),
-  rel = sapply(table_2, \(x) unname(x[["result"]][["specificity"]]["rel.spec"])),
-  lcl.rel = sapply(table_2, \(x) unname(x[["result"]][["specificity"]]["lcl.rel.spec"])),
-  ucl.rel = sapply(table_2, \(x) unname(x[["result"]][["specificity"]]["ucl.rel.spec"]))
+  rel = sapply(table_2, \(x) unname(x[["result"]][["y1y3"]][["specificity"]]["rel.spec"])),
+  lcl.rel = sapply(table_2, \(x) unname(x[["result"]][["y1y3"]][["specificity"]]["lcl.rel.spec"])),
+  ucl.rel = sapply(table_2, \(x) unname(x[["result"]][["y1y3"]][["specificity"]]["ucl.rel.spec"]))
 ) |> 
   mutate(race = factor(race, levels = rev(levels(septa_with_overall$race))))
 
@@ -206,9 +206,10 @@ table_2_sa <- map(strata_vars, \(s)
                   map(split(septa_strata, septa_strata[[s]]), \(dat)
                       make_table_2(dat, 
                                    d = "cb_isup2p",
-                                   y1 = bloodtests_table_2[1], 
-                                   y2 = bloodtests_table_2[2], 
-                                   testlabels = names(bloodtests_table_2))$out_df   
+                                   y1 = bloodtests_table_2_psa4[1], 
+                                   y2 = bloodtests_table_2_psa4[2],
+                                   y3 = bloodtests_table_2_psa4[3],
+                                   testlabels = names(bloodtests_table_2_psa4))$out_df   
                   ) |> bind_rows(.id = "stratum")
 ) |> bind_rows(.id = "sa")
 
@@ -538,9 +539,10 @@ with(septa,
 table_2_alt <- split(septa_with_overall, septa_with_overall$race) |> 
   map(\(x) make_table_2(x, 
                         d = "al_isup2p",
-                        y1 = bloodtests_table_2[1], 
-                        y2 = bloodtests_table_2[2], 
-                        testlabels = names(bloodtests_table_2))) 
+                        y1 = bloodtests_table_2_psa4[1], 
+                        y2 = bloodtests_table_2_psa4[2],
+                        y3 = bloodtests_table_2_psa4[3],
+                        testlabels = names(bloodtests_table_2_psa4))) 
 
 tables_list$table_2_alt <- table_2_alt |> 
   map(`[[`, "out_df") |> 
@@ -574,69 +576,27 @@ tables_list$table_3_alt <- table_3_alt |>
 tables_list$table_3_alt
 ```
 
-# Table 2 for Stockholm3≥11 vs PSA≥3 ng/ml
+# Table 2 for Stockholm3≥11 and Stockholm≥15 vs PSA≥3 ng/ml
 
 Outcome: ISUP2+ on combined biopsy (SBx+TBx)
 
 ```{r}
-
-table_2_11vs3 <- split(septa_with_overall, septa_with_overall$race) |> 
+table_2_psa3 <- split(septa_with_overall, septa_with_overall$race) |> 
   map(\(x) make_table_2(x, 
                         d = "cb_isup2p",
-                        y1 = bloodtests_table_2_11vs3[1], 
-                        y2 = bloodtests_table_2_11vs3[2], 
-                        testlabels = names(bloodtests_table_2_11vs3))) 
+                        y1 = bloodtests_table_2_psa3[1], 
+                        y2 = bloodtests_table_2_psa3[2],
+                        y3 = bloodtests_table_2_psa3[3],
+                        testlabels = names(bloodtests_table_2_psa3))) 
 
-tables_list$table_2_11vs3 <- table_2_11vs3 |> 
+tables_list$table_2_psa3 <- table_2_psa3 |> 
   map(`[[`, "out_df") |> 
   bind_rows(.id = "race") |> 
   gt_table_2()
 
-tables_list$table_2_11vs3
+tables_list$table_2_psa3
 ```
 
-# Table 2 for Stockholm3≥15 vs PSA≥3 ng/ml
-
-Outcome: ISUP2+ on combined biopsy (SBx+TBx)
-
-```{r}
-
-table_2_15vs3 <- split(septa_with_overall, septa_with_overall$race) |> 
-  map(\(x) make_table_2(x, 
-                        d = "cb_isup2p",
-                        y1 = bloodtests_table_2_15vs3[1], 
-                        y2 = bloodtests_table_2_15vs3[2], 
-                        testlabels = names(bloodtests_table_2_15vs3))) 
-
-tables_list$table_2_15vs3 <- table_2_15vs3 |> 
-  map(`[[`, "out_df") |> 
-  bind_rows(.id = "race") |> 
-  gt_table_2()
-
-tables_list$table_2_15vs3
-```
-
-
-# Table 2 for Stockholm3≥11 vs PSA≥4 ng/ml
-
-Outcome: ISUP2+ on combined biopsy (SBx+TBx)
-
-```{r}
-
-table_2_11vs4 <- split(septa_with_overall, septa_with_overall$race) |> 
-  map(\(x) make_table_2(x, 
-                        d = "cb_isup2p",
-                        y1 = bloodtests_table_2_11vs4[1], 
-                        y2 = bloodtests_table_2_11vs4[2], 
-                        testlabels = names(bloodtests_table_2_11vs4))) 
-
-tables_list$table_2_11vs4 <- table_2_11vs4 |> 
-  map(`[[`, "out_df") |> 
-  bind_rows(.id = "race") |> 
-  gt_table_2()
-
-tables_list$table_2_11vs4
-```
 
 
 

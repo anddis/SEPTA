@@ -550,34 +550,58 @@ tidy_sesp.rel <- function(x) {
 }
 
 
-make_table_2 <- function(dat, d, y1, y2, testlabels) {
-  na.fail(list(dat[[d]], dat[[y1]], dat[[y2]]))
 
+make_table_2 <- function(dat, d, y1, y2, y3, testlabels) {
+  na.fail(list(dat[[d]], dat[[y1]], dat[[y2]]))
+  
   yy1 <- dat[[y1]]
   yy2 <- dat[[y2]]
+  yy3 <- dat[[y3]]
   dd <- dat[[d]]
-  tt <- tab.paired(d = dd, y1 = yy1, y2 = yy2, testnames = testlabels)
-  ttsum <- tt$diseased + tt$non.diseased
   
-  nobs <-  c(nobs = ttsum["Total", "Total"])
+  tt <- list(
+    y1y2 = tab.paired(d = dd, y1 = yy1, y2 = yy2, testnames = testlabels[c(1, 2)]),
+    y1y3 = tab.paired(d = dd, y1 = yy1, y2 = yy3, testnames = testlabels[c(1, 3)])
+  )
   
-  test1_bx <- tidy_binom.test(binom.test(ttsum["Total", "Test1 pos."], ttsum["Total", "Total"]))
-  test2_bx <- tidy_binom.test(binom.test(ttsum["Test2 pos.", "Total"], ttsum["Total", "Total"]))
+  ttsum <- list(
+    y1y2 = tt$y1y2$diseased + tt$y1y2$non.diseased,
+    y1y3 = tt$y1y3$diseased + tt$y1y3$non.diseased
+  )
   
-  res <- sesp.rel(tt)
-  tidy_res <- tidy_sesp.rel(res)
-  test1_res <- c(d = tt$diseased["Total", "Test1 pos."], rse_ci = "ref.", nd = tt$non.diseased["Total", "Test1 neg."], rsp_ci = "ref.")
-  test2_res <- c(d = tt$diseased["Test2 pos.", "Total"], rse_ci = tidy_res$sensitivity, nd = tt$non.diseased["Test2 neg.", "Total"], rsp_ci = tidy_res$specificity)
-
+  nobs <-  c(nobs = ttsum$y1y2["Total", "Total"])
+  
+  test_bx <- list(
+    y1 = tidy_binom.test(binom.test(ttsum$y1y2["Total", "Test1 pos."], ttsum$y1y2["Total", "Total"])),
+    y2 = tidy_binom.test(binom.test(ttsum$y1y2["Test2 pos.", "Total"], ttsum$y1y2["Total", "Total"])),
+    y3 = tidy_binom.test(binom.test(ttsum$y1y3["Test2 pos.", "Total"], ttsum$y1y3["Total", "Total"]))
+  )
+  
+  res <- list(
+    y1y2 = sesp.rel(tt$y1y2),
+    y1y3 = sesp.rel(tt$y1y3)
+  )  
+  
+  tidy_res <- list(
+    y1y2 = tidy_sesp.rel(res$y1y2),
+    y1y3 = tidy_sesp.rel(res$y1y3)
+  )
+  
+  test_res <- list(
+    y1y1 = c(d = tt$y1y2$diseased["Total", "Test1 pos."], rse_ci = "ref.",                    nd = tt$y1y2$non.diseased["Total", "Test1 neg."], rsp_ci = "ref."),
+    y1y2 = c(d = tt$y1y2$diseased["Test2 pos.", "Total"], rse_ci = tidy_res$y1y2$sensitivity, nd = tt$y1y2$non.diseased["Test2 neg.", "Total"], rsp_ci = tidy_res$y1y2$specificity),
+    y1y3 = c(d = tt$y1y3$diseased["Test2 pos.", "Total"], rse_ci = tidy_res$y1y3$sensitivity, nd = tt$y1y3$non.diseased["Test2 neg.", "Total"], rsp_ci = tidy_res$y1y3$specificity)
+  )
+  
   first_two_columns_df <- data.frame(testlabels = testlabels) |> 
     separate_wider_regex(testlabels, patterns = c(strategy = ".*", threshold = ">=.*"))
   
- out_df <- cbind(
+  out_df <- cbind(
     first_two_columns_df,
     as.data.frame(
       cbind(nobs,
-            rbind(test1_bx, test2_bx),
-            rbind(test1_res, test2_res)
+            do.call("rbind", test_bx),
+            do.call("rbind", test_res)
       )
     )
   )
@@ -588,6 +612,7 @@ make_table_2 <- function(dat, d, y1, y2, testlabels) {
     out_df = out_df
   )
 }
+
 
 
 make_row_table_3 <- function(dat, d, y, testlabel) {
