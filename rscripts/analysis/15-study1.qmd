@@ -597,6 +597,19 @@ tables_list$table_2_psa3 <- table_2_psa3 |>
 tables_list$table_2_psa3
 ```
 
+# Relative PPV and NPV for Stockholm≥15 vs PSA≥4 ng/ml
+
+Point estimates and 95% joint confidence region
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+
+rpv_ellipse_data <- map(table_2, \(x) ellipse.pv.rpv(pv.rpv(x$data_table$y1y3), exponentiate = TRUE))
+
+plot_rpv_ellipse(rpv_ellipse_data)
+```
+
 
 
 

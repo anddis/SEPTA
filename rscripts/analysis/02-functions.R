@@ -551,13 +551,13 @@ tidy_sesp.rel <- function(x) {
 
 
 
-make_table_2 <- function(dat, d, y1, y2, y3, testlabels) {
-  na.fail(list(dat[[d]], dat[[y1]], dat[[y2]]))
+make_table_2 <- function(dat, d, y1, y2, y3, testlabels) { # y2 vs y1 and y3 vs y1
+  na.fail(list(dat[[d]], dat[[y1]], dat[[y2]], dat[[y3]]))
   
   yy1 <- dat[[y1]]
   yy2 <- dat[[y2]]
   yy3 <- dat[[y3]]
-  dd <- dat[[d]]
+  dd  <- dat[[d]]
   
   tt <- list(
     y1y2 = tab.paired(d = dd, y1 = yy1, y2 = yy2, testnames = testlabels[c(1, 2)]),
@@ -1203,4 +1203,37 @@ make_gt_table_labels <- function() {
     table_3_alt = table_3_alt_labels 
   )
   
+}
+
+
+plot_rpv_ellipse <- function(obj) {
+  myfmt <- function(x) {
+    sprintf("%4.2f", x)
+  }
+  
+  data_ellipse <- map(obj,\(x) as_tibble(x$ellipse)) |> 
+    bind_rows(.id = "race") |> 
+    mutate(race = factor(race, levels = c("Overall", levels(septa$race)))) 
+  
+  data_centre <- map(obj,\(x) as.data.frame(as.list(x$centre))) |> 
+    bind_rows(.id = "race") |> 
+    mutate(race = factor(race, levels = c("Overall", levels(septa$race))),
+           label = paste0("rPPV: ", myfmt(rppv.rppv), "\n rNPV: ", myfmt(rnpv.rnpv)))
+  
+  ggplot(data_ellipse, aes(x = rppv, y = rnpv)) +
+    geom_path(linewidth = 1.1) +
+    geom_point(data = data_centre, aes(x = rppv.rppv, y = rnpv.rnpv)) +
+    geom_label(data = data_centre, aes(x = 1.15, y = 1.6, label = label), size = 4, label.size = NA) + 
+    geom_vline(xintercept = 1, lty = 3) +
+    geom_hline(yintercept = 1, lty = 3) +
+    facet_wrap(~ race) +
+    theme_minimal(base_size = 12) +
+    scale_x_continuous(trans = "log", limits = c(0.9, 1.8), breaks = seq(0.9, 1.8, 0.1), labels = scales::label_number(accuracy = .1)) +
+    scale_y_continuous(trans = "log", limits = c(0.9, 1.8), breaks = seq(0.9, 1.8, 0.1), labels = scales::label_number(accuracy = .1)) +
+    labs(x = "rPPV",
+         y = "rNPV",
+         title = "Relative Predictive Values with 95% Confidence Region (ISUP>=2 cancers)",
+         subtitle = "Stockholm3 >=15 versus PSA >=4 ng/ml",
+         caption = "Dotted lines indicate no difference in Predictive Values.\nrPPV: relative Positive Predictive Value. rNPV: relative Negative Predictive Value.") +
+    theme(strip.text = element_text(size = 13))
 }
