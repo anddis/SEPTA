@@ -1218,11 +1218,11 @@ plot_rpv_ellipse <- function(obj) {
   data_centre <- map(obj,\(x) as.data.frame(as.list(x$centre))) |> 
     bind_rows(.id = "race") |> 
     mutate(race = factor(race, levels = c("Overall", levels(septa$race))),
-           label = paste0("rPPV: ", myfmt(rppv.rppv), "\n rNPV: ", myfmt(rnpv.rnpv)))
+           label = paste0("rPPV: ", myfmt(rppv), "\n rNPV: ", myfmt(rnpv)))
   
   ggplot(data_ellipse, aes(x = rppv, y = rnpv)) +
     geom_path(linewidth = 1.1) +
-    geom_point(data = data_centre, aes(x = rppv.rppv, y = rnpv.rnpv)) +
+    geom_point(data = data_centre, aes(x = rppv, y = rnpv)) +
     geom_label(data = data_centre, aes(x = 1.15, y = 1.6, label = label), size = 4, label.size = NA) + 
     geom_vline(xintercept = 1, lty = 3) +
     geom_hline(yintercept = 1, lty = 3) +
