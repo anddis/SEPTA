@@ -505,6 +505,10 @@ make_table1_vars <- function(dat) {
   dat$pirads4p <- as.integer(dat$pirads_score >= "PIRADS4")
   dat$piradsns <- as.integer(dat$pirads_score == "No score")
   
+  # Total number of cores
+  dat$cb_cores_total <- apply(dat[, c("systematic_cores_total", "target_cores_total")], 
+                           1, sum, na.rm = TRUE)
+  
   labels <- tribble(
     ~var,                ~label,
     "fhpca",             "Family history of prostate cancer",
@@ -513,7 +517,8 @@ make_table1_vars <- function(dat) {
     "five_ari",          "5-alpha reductase inhibitors use",
     "pirads3p",          "PI-RADS score >=3",
     "pirads4p",          "PI-RADS score >=4",
-    "piradsns",          "PI-RADS score missing"
+    "piradsns",          "PI-RADS score missing",
+    "cb_cores_total",    "Total number of biopsy cores"
   )
   
   dat <- labelled::set_variable_labels(dat,
@@ -802,7 +807,7 @@ make_strata_vars <- function(dat) {
                              labels = factor_labels$ny)
   
   labels <- tribble(
-    ~var, ~label,
+    ~var,                     ~label,
     "strata_tbx",             "Men with targeted biopsies",
     "strata_previous_biopsy", "Men which are repeat biopsies",
     "strata_fhpca",           "Men with a family history of prostate cancer",
@@ -1211,7 +1216,7 @@ plot_rpv_ellipse <- function(obj) {
     sprintf("%4.2f", x)
   }
   
-  data_ellipse <- map(obj,\(x) as_tibble(x$ellipse)) |> 
+  data_ellipse <- map(obj,\(x) as.data.frame(x$ellipse)) |> 
     bind_rows(.id = "race") |> 
     mutate(race = factor(race, levels = c("Overall", levels(septa$race)))) 
   

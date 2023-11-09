@@ -57,13 +57,13 @@ Derived data time stamp: ``r format(attr(septa, "datetime_created"), usetz = TRU
 tables_list$table_1 <- septa |>
   make_table1_vars() |> 
   select(race, race_copy, age, psa, risk_score, dre_abnormal, fhpca, prevbx, five_ari, 
-         risk_score, targeted_biopsy_performed, pirads3p, pirads4p, piradsns, 
+         risk_score, targeted_biopsy_performed, pirads3p, pirads4p, piradsns, cb_cores_total, 
          cb_benign, cb_isup1, cb_isup2p, al_isup2p, cb_isup3p) |> 
   tbl_summary(by = race,
               missing = "ifany",
               missing_text = "Missing",
               #type = all_dichotomous() ~ "categorical",
-              digits = list(psa ~ 1)) |>  
+              digits = list(psa ~ 1, cb_cores_total ~ 0)) |>  
   add_overall() |> 
   as_gt() |> 
   tab_options(table.font.size = px(14))
