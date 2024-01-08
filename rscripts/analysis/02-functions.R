@@ -236,7 +236,7 @@ process_data_nice <- function(dat, dat_name, data_id, data_s3, data_biopsy_year)
 
 
 # Process data stored in a non-nice format (northwestern)
-process_data_notnice <- function(dat, data_id, data_s3, data_biopsy_year) {
+process_data_notnice <- function(dat, data_id, data_s3, data_biopsy_year, data_zipcode) {
   
   # Factor labels
   factor_labels <- make_factor_labels()
@@ -334,8 +334,13 @@ process_data_notnice <- function(dat, data_id, data_s3, data_biopsy_year) {
   dat$combined_grade_group <- pmax(dat$systematic_grade_group,
                                    dat$targeted_grade_group, na.rm = TRUE)
   
+  # Add biopsy year
   dat <- left_join(dat, data_biopsy_year, by = c("phi_id", "gapcap_id"))
   
+  # Add ZIP code
+  dat <- left_join(dat, data_zipcode, by = c("phi_id", "gapcap_id"))
+  
+  # Rename vars
   dat <- rename(dat,
                 previous_biopy = prior_biopsies,
                 five_ari = on_finasteride_more_than_6_month,
@@ -356,6 +361,7 @@ process_data_notnice <- function(dat, data_id, data_s3, data_biopsy_year) {
   
   dat <- select(dat,
                 "sthlm3_id",
+                "zip_code",
                 "age",
                 "race",
                 "black_his",

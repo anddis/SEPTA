@@ -60,6 +60,9 @@ data_raw <- list(
                                     guess_max = Inf),
   northwestern_biopsy_year = read_delim(here::here("data", "raw", load_data_from, "Northwestern_biopsy_year.csv"),
                                  delim = ";", guess_max = Inf),
+  northwestern_zipcode = readxl::read_excel(here::here("data", "raw", load_data_from, "Northwestern_SEPTADATA_zipcode.xlsx"),
+                                            sheet = "Sheet1",
+                                            guess_max = Inf), 
   
   # id linkage update
   uic_id = readxl::read_excel(here::here("data", "raw", load_data_from, "New sthlm3_ID assigned UIC 2.08.2023.xlsx"),

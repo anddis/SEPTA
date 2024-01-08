@@ -42,6 +42,7 @@ data_notnice <- data_raw[c(
 )]
 
 # data biopsy year northwestern uthsca
+## clean var names / vars here -- might consider doing it in the processing functions
 data_biopsy_year <- list(
   northwestern = data_raw$northwestern_biopsy_year |> 
     janitor::clean_names(parsing_option = 3) |> 
@@ -51,6 +52,7 @@ data_biopsy_year <- list(
 )
 
 # data to update PIDs
+## clean var names / vars here -- might consider doing it in the processing functions
 data_id <- data_raw[c(
   "uic_id",
   "uoc_id",
@@ -59,6 +61,15 @@ data_id <- data_raw[c(
   "uhn3_2_id"
 )] |> 
   map(\(x) mutate(x, across(everything(), \(var) trimws(var, "both", "[\\h\\v]"))))
+
+# data ZIP code
+## clean var names / vars here -- might consider doing it in the processing functions
+data_zipcode <- list(
+  northwestern = data_raw$northwestern_zipcode |> 
+    janitor::clean_names(parsing_option = 3) |> 
+    mutate(across(where(is.character), tolower)) |> 
+    mutate(across(where(is.numeric), as.character))
+)
 
 # Stockholm3 data
 data_s3 <- select(data_raw$s3, sthlm3_id, risk_score)
@@ -99,7 +110,8 @@ data_nice_processed <- imap(data_nice, \(x, y) process_data_nice(x, y,
 data_notnice_processed <- list(northwestern = process_data_notnice(data_notnice$northwestern, 
                                                                    data_id = data_id$northwestern_id, 
                                                                    data_s3 = data_s3, 
-                                                                   data_biopsy_year = data_biopsy_year$northwestern))
+                                                                   data_biopsy_year = data_biopsy_year$northwestern,
+                                                                   data_zipcode = data_zipcode$northwestern))
 
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 # Combine processed data and save ----
@@ -116,6 +128,7 @@ combined <- c(data_nice_processed,
          "black_his",
          "east_south_asian",
          "white",
+         "zip_code",
          "psa",
          "risk_score",
          # "in_s3_data",
@@ -153,6 +166,10 @@ combined <- c(data_nice_processed,
 now <- Sys.time()
 attr(combined, "datetime_created") <- now
 
+# Save data in RDS format (analysis dataset)
 saveRDS(combined, here::here("data", "derived", paste0(format(Sys.time(), '%Y%m%d_%H%M'), "-septa.rds")), compress = FALSE)
 
+# Save data and metadata in other formats
 openxlsx::write.xlsx(combined, paste0("~/desktop/", format(Sys.time(), '%Y%m%d'), "-septa.xlsx"))
+write_csv(combined, paste0("~/desktop/", format(Sys.time(), '%Y%m%d'), "-septa.csv"))
+openxlsx::write.xlsx(x, paste0("~/desktop/", format(Sys.time(), '%Y%m%d'), "-septa-dictionary.xlsx"))
