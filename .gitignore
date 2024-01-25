@@ -8,6 +8,8 @@
 !/rscripts/analysis/*.qmd
 /rscripts/power/*
 !/rscripts/power/*.R
+/rscripts/analysis/03-functions_asco_2023.R
+/rscripts/analysis/10-asco_2023.R
 
 # History files
 .Rhistory
