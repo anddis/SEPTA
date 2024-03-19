@@ -28,12 +28,15 @@ make_factor_labels <- function() {
   ny <- c("No", "Yes") # 0 1
   isup <- c("Benign", paste0("ISUP", 1:5))
   pirads <- paste0("PIRADS", 1:5)
+  pirads2 <- c("Missing or <=2", "3", ">=4")
   race <- c("Asian",                                # order in tables
             "Black or African American", 
             "Hispanic or Latino and White", 
             "Non-Hispanic or Non-Latino and White")
+  race_overall <- c("Overall", race)
   
-  list(nydn = nydn, ny = ny, isup = isup, pirads = pirads, race = race)
+  list(nydn = nydn, ny = ny, isup = isup, pirads = pirads, 
+       pirads2 = pirads2, race = race, race_overall = race_overall)
 }
 
 # Process data stored in nice format
@@ -417,13 +420,7 @@ make_test_pca_vars <- function(dat) {
     dat[[paste0(prefix[i], "_isup3p")]] <- as.integer(dat[[var[i]]] >= "ISUP3")
   }
   
-  labels <- tribble( # add as needed
-    ~var,                ~label,
-    "cb_benign",         "Benign biopsy",
-    "cb_isup1",          "ISUP Grade 1 cancer",
-    "cb_isup2p",         "ISUP Grade >= 2 cancer",
-    "cb_isup3p",         "ISUP Grade >= 3 cancer"
-  )
+  labels <- make_var_labels()
   
   dat <- labelled::set_variable_labels(dat,
                                        .labels = setNames(as.list(labels$label), labels$var), 
@@ -459,10 +456,7 @@ make_alternative_pca_vars <- function(dat) {
   dat$al_isup2p <- as.integer(dat$alternative_grade_group >= "Unfavourable Intermediate")
   dat$al_isup3p <- as.integer(dat$alternative_grade_group >= "Unfavourable Intermediate") # needed to make make_row_table_3() work
   
-  labels <- tribble( # add as needed
-    ~var,                ~label,
-    "al_isup2p",         "Unfavourable Intermediate or higher cancer",
-  )
+  labels <- make_var_labels()
   
   dat <- labelled::set_variable_labels(dat,
                                        .labels = setNames(as.list(labels$label), labels$var), 
@@ -515,17 +509,7 @@ make_table1_vars <- function(dat) {
   dat$cb_cores_total <- apply(dat[, c("systematic_cores_total", "target_cores_total")], 
                            1, sum, na.rm = TRUE)
   
-  labels <- tribble(
-    ~var,                ~label,
-    "fhpca",             "Family history of prostate cancer",
-    "prevbx",            "Previous negative biopsy",
-    "dre_abnormal",      "Abnormal DRE",
-    "five_ari",          "5-alpha reductase inhibitors use",
-    "pirads3p",          "PI-RADS score >=3",
-    "pirads4p",          "PI-RADS score >=4",
-    "piradsns",          "PI-RADS score missing",
-    "cb_cores_total",    "Total number of biopsy cores"
-  )
+  labels <- make_var_labels()
   
   dat <- labelled::set_variable_labels(dat,
                                        .labels = setNames(as.list(labels$label), labels$var), 
@@ -630,11 +614,14 @@ make_row_table_3 <- function(dat, d, y, testlabel) {
   na.fail(dat[[d]])
   prefix <- substr(d, 1, 3)
   
+  factor.01 <- function(x) {
+    factor(x, levels = c(0, 1), labels = c(0, 1))
+  }
+  
   if (y == "all") {
-    out_df <- make_first_row_table_3(dat, d, d_isup1 = paste0(prefix, "isup1")) 
+    out_df <- make_first_row_table_3(dat, d) 
                                      
-    
-    return(
+  return(
       list(
         result = NULL,
         out_df = out_df
@@ -647,13 +634,13 @@ make_row_table_3 <- function(dat, d, y, testlabel) {
   d <- dat[[d]]
   y <- dat[[y]]
   
-  tab1 <- addmargins(table(y, dat[[paste0(prefix, "isup01")]]))
-  tab2 <- addmargins(table(y, dat[[paste0(prefix, "isup1")]]))
-  tab3 <- addmargins(table(y, dat[[paste0(prefix, "isup2p")]]))
-  tab4 <- addmargins(table(y, dat[[paste0(prefix, "isup3p")]]))
+  tab1 <- addmargins(table(factor.01(y), factor.01(dat[[paste0(prefix, "isup01")]])))
+  tab2 <- addmargins(table(factor.01(y), factor.01(dat[[paste0(prefix, "isup1")]] )))
+  tab3 <- addmargins(table(factor.01(y), factor.01(dat[[paste0(prefix, "isup2p")]])))
+  tab4 <- addmargins(table(factor.01(y), factor.01(dat[[paste0(prefix, "isup3p")]])))
   
   
-  ope <- acc.1test(tab.1test(d = d, y = y, testname = testname))
+  ope <- acc.1test.Ro3(tab.1test(d = d, y = y, testname = testname))
 
     out <- c(
     testlabel =          testlabel,
@@ -681,23 +668,35 @@ make_row_table_3 <- function(dat, d, y, testlabel) {
   )
 }
 
-make_first_row_table_3 <- function(dat, d, d_isup1) {
-  d <- dat[[d]]
-  d_isup1 <- dat[[d_isup1]]
+make_first_row_table_3 <- function(dat, d) {
+  myfmt <- function(x, parentheses = TRUE) {
+    a <- format_percent(x)
+    if (!parentheses)
+      a
+    else 
+      return(paste0("(", a, ")"))
+  }
+  
+  prefix <- substr(d, 1, 3)
+  
+  d_isup01 <- dat[[paste0(prefix, "isup01")]]
+  d_isup1 <-  dat[[paste0(prefix, "isup1")]]
+  d_isup2p <- dat[[paste0(prefix, "isup2p")]]
+  d_isup3p <- dat[[paste0(prefix, "isup3p")]]
+  y <- rep(1, length(d_isup2p))
   
   first_row <- c(
     strategy =           "All",
     threshold =          "None",
-    nobs =               length(d),
-    performed_isup01 =   paste0(sum(1-d), " (100%)"),
-    #avoided_isup01 =     "0 (0%)",  
-    performed_isup1 =    paste0(sum(d_isup1), " (100%)"),
-    specificity =        "0%",
+    nobs =               length(d_isup2p),
+    performed_isup01 =   paste(sum(d_isup01), myfmt(sum(d_isup01[y == 1])/sum(d_isup01))),
+    performed_isup1 =    paste(sum(d_isup1), myfmt(sum(d_isup1[y == 1])/sum(d_isup1))),
+    specificity =        myfmt(mean(1-y[d_isup01 == 1]), FALSE),
     ppv =                "—",
-    detected_isup2p =    paste0(sum(d), " (100%)"),
-    missed_isup2p =      "0 (0%)",
-    missed_isup3p =      "0 (0%)",
-    sensitivity =        "100%",
+    detected_isup2p =    paste(sum(d_isup2p),   myfmt(sum(d_isup2p[y == 1])/sum(d_isup2p))),
+    missed_isup2p =      paste(0, myfmt(sum(d_isup2p[y == 0])/sum(d_isup2p))),
+    missed_isup3p =      paste(0, myfmt(sum(d_isup3p[y == 0])/sum(d_isup3p))),
+    sensitivity =        myfmt(mean(y[d_isup2p == 1]), FALSE),
     npv =                "—"
   )
   
@@ -741,6 +740,23 @@ gt_table_3 <- function(tbl) {
     gt() |> 
     (\(x) cols_label(x,
                      .list = table_3_labels[names(x[["_data"]])]
+    ))() |> 
+    tab_style(
+      style = cell_text(weight = "bold"),
+      locations = list(cells_column_labels(),
+                       cells_column_spanners())
+    ) |> 
+    tab_options(table.font.size = px(14))
+}
+
+
+gt_table_4 <- function(tbl) {
+  table_4_labels <- make_gt_table_labels()$table_4
+  
+  tbl |> 
+    gt() |> 
+    (\(x) cols_label(x,
+                     .list = table_4_labels[names(x[["_data"]])]
     ))() |> 
     tab_style(
       style = cell_text(weight = "bold"),
@@ -798,6 +814,7 @@ make_strata_vars <- function(dat) {
   
   factor_labels <- make_factor_labels()
   
+  # strata vars for T3
   dat$strata_tbx <- dat$targeted_biopsy_performed
   dat$strata_previous_biopsy <- fct_na_level_to_value(dat$previous_biopsy, 
                                                       extra_levels = "Don't know")
@@ -811,17 +828,20 @@ make_strata_vars <- function(dat) {
                           labels = factor_labels$ny)
   dat$strata_septa <- factor(!grepl("^northwestern|^uhn", dat$centre_id),
                              labels = factor_labels$ny)
+  dat$strata_mri <- dat$mri_performed
+  dat$strata_pirads_score <- factor(dat$pirads_score, 
+                                    levels = c("No score", factor_labels$pirads),
+                                    labels = rep(factor_labels$pirads2, c(3, 1, 2)),
+                                    ordered = TRUE)
   
-  labels <- tribble(
-    ~var,                     ~label,
-    "strata_tbx",             "Men with targeted biopsies",
-    "strata_previous_biopsy", "Men which are repeat biopsies",
-    "strata_fhpca",           "Men with a family history of prostate cancer",
-    "strata_5ari",            "Men using 5-alpha reductase inhibitors",
-    "strata_age65",           "Men >=65 years old",
-    "strata_pp",              "Per Protocol",
-    "strata_septa",           "Men specifically recruited for SEPTA"
-  )
+  # strata vars for T4
+  dat$strata2_race <- dat$race
+  dat$strata2_fhpca <- dat$strata_fhpca
+  dat$strata2_psa_5cat <- cut(dat$psa, breaks = c(0, 1.5, 3, 10, 20, Inf), 
+                             right = FALSE,
+                             labels = c("<1.5", "1.5-2.9", "3-9.9", "10-19.9", ">=20"))
+  
+  labels <- make_var_labels()
   
   dat <- labelled::set_variable_labels(dat,
                                        .labels = setNames(as.list(labels$label), labels$var), 
@@ -829,6 +849,9 @@ make_strata_vars <- function(dat) {
   
   return(dat)
 }
+
+
+
 
 
 tidy_auc <- function(obj) {
@@ -1208,10 +1231,19 @@ make_gt_table_labels <- function() {
     )
   )
   
+  table_4_labels <- modifyList(
+    table_3_labels,
+    list(
+      sa1 = "Stratum",
+      stratum = "PSA category (ng/ml)"
+    )
+  )
+  
   list(
     table_2 = table_2_labels,
     table_3 = table_3_labels,
-    table_3_alt = table_3_alt_labels 
+    table_3_alt = table_3_alt_labels,
+    table_4 = table_4_labels
   )
   
 }
@@ -1237,7 +1269,7 @@ plot_rpv_ellipse <- function(obj) {
     geom_label(data = data_centre, aes(x = 1.15, y = 1.6, label = label), size = 4, label.size = NA) + 
     geom_vline(xintercept = 1, lty = 3) +
     geom_hline(yintercept = 1, lty = 3) +
-    facet_wrap(~ race) +
+    facet_wrap(~ race, scales = "free") +
     theme_minimal(base_size = 12) +
     scale_x_continuous(trans = "log", limits = c(0.9, 1.8), breaks = seq(0.9, 1.8, 0.1), labels = scales::label_number(accuracy = .1)) +
     scale_y_continuous(trans = "log", limits = c(0.9, 1.8), breaks = seq(0.9, 1.8, 0.1), labels = scales::label_number(accuracy = .1)) +
@@ -1248,3 +1280,160 @@ plot_rpv_ellipse <- function(obj) {
          caption = "Dotted lines indicate no difference in Predictive Values.\nrPPV: relative Positive Predictive Value. rNPV: relative Negative Predictive Value.") +
     theme(strip.text = element_text(size = 13))
 }
+
+
+make_var_labels <- function() {
+  
+  tribble( # add as needed
+    ~var,                ~label,
+    "al_isup2p",         "Unfavourable Intermediate or higher cancer",
+    #
+    "cb_benign",         "Benign biopsy",
+    "cb_isup1",          "ISUP Grade 1 cancer",
+    "cb_isup2p",         "ISUP Grade >= 2 cancer",
+    "cb_isup3p",         "ISUP Grade >= 3 cancer",
+    "psa_3p",            "PSA>=3 ng/ml",
+    "psa_4p",            "PSA>=4 ng/ml",
+    "s3_11p",            "Stockholm3>=11",
+    "s3_15p",            "Stockholm3>=15",
+    #
+    "fhpca",             "Family history of prostate cancer",
+    "prevbx",            "Previous negative biopsy",
+    "dre_abnormal",      "Abnormal DRE",
+    "five_ari",          "5-alpha reductase inhibitors use",
+    "pirads3p",          "PI-RADS score >=3",
+    "pirads4p",          "PI-RADS score >=4",
+    "piradsns",          "PI-RADS score missing",
+    #
+    "cb_cores_total",    "Total number of biopsy cores",
+    "strata_mri",             "Men with MRI scans",
+    "strata_pirads_score",    "PI-RADS score",
+    "strata_tbx",             "Men with targeted biopsies",
+    "strata_previous_biopsy", "Men which are repeat biopsies",
+    "strata_fhpca",           "Men with a family history of prostate cancer",
+    "strata_5ari",            "Men using 5-alpha reductase inhibitors",
+    "strata_age65",           "Men >=65 years old",
+    "strata_pp",              "Per Protocol",
+    "strata_septa",           "Men specifically recruited for SEPTA",
+    "strata2_psa_5cat",       "PSA category",
+    "strata2_fhpca",          "Men with a family history of prostate cancer",
+    "strata2_race",           "Race"
+  )
+}
+
+# Added rule of three for CIs if {sesn,spec,ppv,npv}={0,1}
+acc.1test.Ro3 <- function (tab, alpha, testname, ...) 
+{
+  if (missing(tab)) 
+    stop("Table is missing.")
+  if (!(inherits(x = tab, what = "tab.1test", which = F))) 
+    stop("Table must be of class 'tab.1test'")
+  if (missing(testname)) 
+    testname <- tab$testname
+  tab <- tab[[1]]
+  if (missing(alpha)) 
+    alpha <- 0.05
+  sens.est <- tab[1, 1]/tab[3, 1]
+  sens.se <- sqrt((tab[1, 1] * tab[2, 1])/(tab[3, 1]^3))
+  if (isTRUE(sens.est == 0)) { # rule of three
+    sens.lcl <- 0
+    sens.ucl <- 3/tab[3, 1]
+  } else if (isTRUE(sens.est == 1)) {
+    sens.lcl <- -3/tab[3, 1] + 1
+    sens.ucl <- 1
+  } else {
+    sens.lcl <- sens.est - qnorm(1 - alpha/2) * sens.se
+    sens.ucl <- sens.est + qnorm(1 - alpha/2) * sens.se
+  }
+  if (isTRUE(sens.lcl < 0)) 
+    sens.lcl <- 0
+  if (isTRUE(sens.ucl > 1)) 
+    sens.ucl <- 1
+  sensitivity <- c(sens.est, sens.se, sens.lcl, sens.ucl)
+  names(sensitivity) <- c("est", "se", "lcl", "ucl")
+  spec.est <- tab[2, 2]/tab[3, 2]
+  spec.se <- sqrt((tab[1, 2] * tab[2, 2])/(tab[3, 2]^3))
+  if (isTRUE(spec.est == 0)) { # rule of three
+    spec.lcl <- 0
+    spec.ucl <- 3/tab[3, 2]
+  } else if (isTRUE(spec.est == 1)) {
+    spec.lcl <- -3/tab[3, 2] + 1
+    spec.ucl <- 1
+  } else {
+    spec.lcl <- spec.est - qnorm(1 - alpha/2) * spec.se
+    spec.ucl <- spec.est + qnorm(1 - alpha/2) * spec.se
+  }
+  if (isTRUE(spec.lcl < 0)) 
+    spec.lcl <- 0
+  if (isTRUE(spec.ucl > 1)) 
+    spec.ucl <- 1
+  specificity <- c(spec.est, spec.se, spec.lcl, spec.ucl)
+  names(specificity) <- c("est", "se", "lcl", "ucl")
+  ppv.est <- tab[1, 1]/tab[1, 3]
+  ppv.se <- sqrt((tab[1, 1] * tab[1, 2])/(tab[1, 3]^3))
+  if (isTRUE(ppv.est == 0)) { # rule of three
+    ppv.lcl <- 0
+    ppv.ucl <- 3/tab[1, 3]
+  } else if (isTRUE(ppv.est == 1)) {
+    ppv.lcl <- -3/tab[1, 3] + 1
+    ppv.ucl <- 1
+  } else {
+    ppv.lcl <- ppv.est - qnorm(1 - alpha/2) * ppv.se
+    ppv.ucl <- ppv.est + qnorm(1 - alpha/2) * ppv.se    
+  }
+  if (isTRUE(ppv.lcl < 0)) 
+    ppv.lcl <- 0
+  if (isTRUE(ppv.ucl > 1)) 
+    ppv.ucl <- 1
+  ppv <- c(ppv.est, ppv.se, ppv.lcl, ppv.ucl)
+  names(ppv) <- c("est", "se", "lcl", "ucl")
+  npv.est <- tab[2, 2]/tab[2, 3]
+  npv.se <- sqrt((tab[2, 1] * tab[2, 2])/(tab[2, 3]^3))
+  if (isTRUE(npv.est == 0)) { # rule of three
+    npv.lcl <- 0
+    npv.ucl <- 3/tab[2, 3]
+  } else if (isTRUE(npv.est == 1)) {
+    npv.lcl <- -3/tab[2, 3] + 1
+    npv.ucl <- 1
+  } else {
+    npv.lcl <- npv.est - qnorm(1 - alpha/2) * npv.se
+    npv.ucl <- npv.est + qnorm(1 - alpha/2) * npv.se
+  }
+  if (isTRUE(npv.lcl < 0)) 
+    npv.lcl <- 0
+  if (isTRUE(npv.ucl > 1)) 
+    npv.ucl <- 1
+  npv <- c(npv.est, npv.se, npv.lcl, npv.ucl)
+  names(npv) <- c("est", "se", "lcl", "ucl")
+  pdlr.est <- sens.est/(1 - spec.est)
+  pdlr.se.log <- sqrt(((1 - sens.est)/(tab[1, 1])) + (spec.est/tab[1, 
+                                                                   2]))
+  pdlr.lcl <- exp(log(pdlr.est) - qnorm(1 - alpha/2) * pdlr.se.log)
+  pdlr.ucl <- exp(log(pdlr.est) + qnorm(1 - alpha/2) * pdlr.se.log)
+  pdlr <- c(pdlr.est, pdlr.se.log, pdlr.lcl, pdlr.ucl)
+  names(pdlr) <- c("est", "se.ln", "lcl", "ucl")
+  ndlr.est <- (1 - sens.est)/spec.est
+  ndlr.se.log <- sqrt((sens.est/tab[2, 1]) + ((1 - spec.est)/tab[2, 
+                                                                 2]))
+  ndlr.lcl <- exp(log(ndlr.est) - qnorm(1 - alpha/2) * ndlr.se.log)
+  ndlr.ucl <- exp(log(ndlr.est) + qnorm(1 - alpha/2) * ndlr.se.log)
+  ndlr <- c(ndlr.est, ndlr.se.log, ndlr.lcl, ndlr.ucl)
+  names(ndlr) <- c("est", "se.ln", "lcl", "ucl")
+  results <- list(tab, sensitivity, specificity, ppv, npv, 
+                  pdlr, ndlr, alpha, testname)
+  names(results) <- c("tab", "sensitivity", "specificity", 
+                      "ppv", "npv", "pdlr", "ndlr", "alpha", "testname")
+  class(results) <- "acc.1test"
+  return(results)
+}
+
+
+
+
+
+
+
+
+
+
+

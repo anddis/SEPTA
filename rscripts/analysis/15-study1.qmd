@@ -45,7 +45,7 @@ septa_with_overall <- bind_rows(
   septa,
   septa |> mutate(race = "Overall")
 ) |> 
-  mutate(race = factor(race, levels = c("Overall", levels(septa$race)))) 
+  mutate(race = factor(race, levels = make_factor_labels()$race_overall)) 
 
 tables_list <- vector(mode = "list")
 ```
@@ -80,6 +80,7 @@ bloodtests <- c(`All` = "all",
 
 bloodtests_table_2_psa4 <- bloodtests[c("PSA>=4", "Stockholm3>=11", "Stockholm3>=15")]
 bloodtests_table_2_psa3 <- bloodtests[c("PSA>=3", "Stockholm3>=11", "Stockholm3>=15")]
+bloodtests_table_4 <- bloodtests[c("All", "Stockholm3>=11", "Stockholm3>=15")]
 ```
 
 
@@ -112,14 +113,14 @@ contrast_matrix <- matrix(c(1, -1,  0,  0,
                           ncol = 4, 
                           byrow = TRUE)
 
-log.rel.sens_race <- log(sapply(table_2, `[[`, c("result", "y1y3", "sensitivity", "rel.sens")))[levels(septa$race)]
-se.log.rel.sens_race  <- sapply(table_2, `[[`, c("result", "y1y3", "sensitivity", "se.log.rel.sens"))[levels(septa$race)]
+log.rel.sens_race <- log(sapply(table_2, `[[`, c("result", "y1y3", "sensitivity", "rel.sens")))[make_factor_labels()$race]
+se.log.rel.sens_race  <- sapply(table_2, `[[`, c("result", "y1y3", "sensitivity", "se.log.rel.sens"))[make_factor_labels()$race]
 chi2.rel.sens_race <- aod::wald.test(Sigma = diag(se.log.rel.sens_race^2), 
                                      b = log.rel.sens_race, 
                                      L = contrast_matrix)
 
-log.rel.spec_race <- log(sapply(table_2, `[[`, c("result", "y1y3", "specificity", "rel.spec")))[levels(septa$race)]
-se.log.rel.spec_race  <- sapply(table_2, `[[`, c("result", "y1y3", "specificity", "se.log.rel.spec"))[levels(septa$race)]
+log.rel.spec_race <- log(sapply(table_2, `[[`, c("result", "y1y3", "specificity", "rel.spec")))[make_factor_labels()$race]
+se.log.rel.spec_race  <- sapply(table_2, `[[`, c("result", "y1y3", "specificity", "se.log.rel.spec"))[make_factor_labels()$race]
 chi2.rel.spec_race <- aod::wald.test(Sigma = diag(se.log.rel.spec_race^2), 
                                      b = log.rel.spec_race, 
                                      L = contrast_matrix)
@@ -165,7 +166,7 @@ data_panel_rel.sens <- data.frame(
   lcl.rel = sapply(table_2, \(x) unname(x[["result"]][["y1y3"]][["sensitivity"]]["lcl.rel.sens"])),
   ucl.rel = sapply(table_2, \(x) unname(x[["result"]][["y1y3"]][["sensitivity"]]["ucl.rel.sens"]))
 ) |> 
-  mutate(race = factor(race, levels = rev(levels(septa_with_overall$race))))
+  mutate(race = factor(race, levels = rev(make_factor_labels()$race_overall)))
 
 panel_rel.sens <- plot_figure_1(dat = data_panel_rel.sens,
                                 title = "Relative Sensitivity (95% CI)",
@@ -179,7 +180,7 @@ data_panel_rel.spec <- data.frame(
   lcl.rel = sapply(table_2, \(x) unname(x[["result"]][["y1y3"]][["specificity"]]["lcl.rel.spec"])),
   ucl.rel = sapply(table_2, \(x) unname(x[["result"]][["y1y3"]][["specificity"]]["ucl.rel.spec"]))
 ) |> 
-  mutate(race = factor(race, levels = rev(levels(septa_with_overall$race))))
+  mutate(race = factor(race, levels = rev(make_factor_labels()$race_overall)))
 
 panel_rel.spec <- plot_figure_1(dat = data_panel_rel.spec,
                                 title = "Relative Specificity (95% CI)",
@@ -236,6 +237,43 @@ tables_list$table_3_sa <- table_3_sa |>
 
 tables_list$table_3_sa
 ```
+
+## Table 4
+```{r}
+strata2_vars <- names(septa_strata)[startsWith(names(septa_strata), "strata2_")]
+strata2_vars <- setNames(strata2_vars, labelled::var_label(septa_strata[, strata2_vars]))
+
+
+table_4_sa <- bind_rows(
+  map(
+    strata2_vars[3], \(s)
+    map(split(septa_strata, septa_strata[[s]]), \(dat)
+        imap(bloodtests_table_4, 
+             \(y, tl) make_row_table_3(dat = dat, d = "cb_isup2p", y = y, testlabel = tl)$out_df
+        ) |> bind_rows()
+    ) |> bind_rows(.id = "stratum")
+  ) |> bind_rows() |> 
+    mutate(sa = "Overall",
+           sa1 = "Overall", .before = everything()),
+  map(
+    strata2_vars[1:2], \(s1) 
+    map(split(septa_strata, septa_strata[[s1]]), \(s2) 
+        map(split(s2, s2[[strata2_vars[3]]]), \(dat)
+            imap(bloodtests_table_4, 
+                 \(y, tl) make_row_table_3(dat = dat, d = "cb_isup2p", y = y, testlabel = tl)$out_df
+            ) |> bind_rows()
+        ) |> bind_rows(.id = "stratum")
+    ) |> bind_rows(.id = "sa1")
+  ) |> bind_rows(.id = "sa")
+)
+
+tables_list$table_4_sa <- table_4_sa |> 
+  gt_table_4()
+
+tables_list$table_4_sa
+```
+
+
 
 # AUC
 
@@ -602,21 +640,131 @@ tables_list$table_2_psa3
 Point estimates and 95% joint confidence region
 
 ```{r}
-#| fig-width: 10
-#| fig-height: 7
+#| fig-width: 11.4
+#| fig-height: 8
 
 rpv_ellipse_data <- map(table_2, \(x) ellipse.pv.rpv(pv.rpv(x$data_table$y1y3), exponentiate = TRUE))
 
 plot_rpv_ellipse(rpv_ellipse_data)
 ```
 
+# Table 1 by SEPTA recruitment
+```{r}
+tables_list$table_1_biobank <- septa |>
+  make_table1_vars() |> 
+  mutate(strata_septa = factor(!grepl("^northwestern|^uhn", centre_id), labels = make_factor_labels()$ny)) |> 
+  select(race, age, psa, risk_score, dre_abnormal, fhpca, prevbx, five_ari, 
+         risk_score, targeted_biopsy_performed, pirads3p, pirads4p, piradsns, cb_cores_total, 
+         cb_benign, cb_isup1, cb_isup2p, al_isup2p, cb_isup3p, strata_septa) |> 
+  tbl_summary(by = strata_septa,
+              missing = "ifany",
+              missing_text = "Missing",
+              #type = all_dichotomous() ~ "categorical",
+              digits = list(psa ~ 1, cb_cores_total ~ 0)) |>  
+  add_overall() |> 
+  modify_spanning_header(all_stat_cols() ~ "**Men specifically recruited for SEPTA**") |> 
+  as_gt() |> 
+  tab_options(table.font.size = px(14))
 
+tables_list$table_1_biobank
+```
+
+# Additional descriptive statistics for PSA and Age
+
+```{r}
+tables_list$table1_additional_stats <- septa |> 
+  select(race, age, psa, race) |> 
+  tbl_summary(by = race,
+              missing = "ifany",
+              missing_text = "Missing",
+              type = all_continuous() ~ "continuous2",
+              statistic = all_continuous() ~ c("{median} ({p25}, {p75})", 
+                                               "{mean}", 
+                                               "{min}-{max}"),
+              digits = list(psa ~ 1)) |> 
+  add_overall()  |> 
+  as_gt() |> 
+  tab_options(table.font.size = px(14))
+
+tables_list$table1_additional_stats
+```
+
+
+# Two-by-two biomarker tables 
+
+```{r warning=FALSE, results='asis'}
+bloodtest_crosstable <- 
+  map(bloodtests[2:3], \(p)
+      map(bloodtests[4:5], \(s) {
+        myfmt <- function(x) {
+          sprintf("%4.2f", x)
+        }
+        
+        c.kappa <- function(x) {
+          # x = prop.table
+          p.o <- sum(diag(x))
+          p.yes <- rowSums(x)[2] * colSums(x)[2]
+          p.no  <- rowSums(x)[1] * colSums(x)[1]
+          p.e <- p.yes + p.no
+          kappa <- (p.o-p.e)/(1-p.e)
+          unname(kappa)
+        }
+        
+        df <- septa |> 
+          mutate(across(c(p, s), \(x) 
+                        factor(x, levels = c(0, 1), labels = make_factor_labels()$ny))) |> 
+          labelled::set_variable_labels(.labels = setNames(as.list(make_var_labels()$label),
+                                                           make_var_labels()$var), 
+                                        .strict = FALSE)
+        
+        kappa <- c.kappa(prop.table(table(df[[p]], df[[s]])))
+        footnote <- paste0("Cohen's kappa coefficient: ", myfmt(kappa), ".")
+        
+        xtab <- df |> 
+          tbl_cross(row = p, 
+                    col = s, 
+                    percent = "cell")  
+        
+        # print as gt for html purposes...
+        print(xtab |> as_gt() |> tab_footnote(footnote)) 
+        
+        #...but export as flextable to save further down 
+        # exporting tbl_cross tables with gtsave corrupts the whole docx
+        xtab |>
+          as_flex_table() |>
+          flextable::add_footer_lines(footnote)
+      }
+      
+      )
+  ) |> 
+  list_flatten()
+```
+
+```{r}
+names(bloodtest_crosstable) <- paste0("bloodtest_crosstable_", 
+                                      names(bloodtest_crosstable))
+tables_list <- c(tables_list, bloodtest_crosstable)
+```
 
 
 ```{r}
 if(params$save_tables == "true") {
-  gt_group(.list = tables_list) |> 
-    gtsave(here::here("output", paste0(params$time, "-septa_tables_study1.docx")))
+  which_bloodtest <- grep("^bloodtest_crosstable_", names(tables_list))
+  filename_out <- here::here("output", paste0(params$time, "-septa_tables_study1.docx"))
+                         
+  gt_group(.list = tables_list[-which_bloodtest]) |> 
+    gtsave(filename_out)
+  
+  Sys.sleep(5)
+  
+  # exporting tbl_cross tables with gtsave corrupts the whole docx
+  doc <- read_docx(filename_out)
+  walk(tables_list[which_bloodtest], \(x) {
+    doc <- body_add_break(doc)
+    doc <- flextable::body_add_flextable(doc, value = x)
+  })
+  print(doc, target = filename_out)
+
 }
 ```
 
