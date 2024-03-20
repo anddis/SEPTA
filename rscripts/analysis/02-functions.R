@@ -500,11 +500,6 @@ make_table1_vars <- function(dat) {
     .default = NA
   )
   
-  # MRI PIRADS
-  # dat$pirads3p <- as.integer(dat$pirads_score >= "PIRADS3")
-  # dat$pirads4p <- as.integer(dat$pirads_score >= "PIRADS4")
-  # dat$piradsns <- as.integer(dat$pirads_score == "No score")
-  
   # Total number of cores
   dat$cb_cores_total <- apply(dat[, c("systematic_cores_total", "target_cores_total")], 
                            1, sum, na.rm = TRUE)
@@ -652,6 +647,7 @@ make_row_table_3 <- function(dat, d, y, testlabel) {
     ppv =                paste0(format_percent(ope$ppv["est"]), " (", format_percent(ope$ppv["lcl"]), "-",  format_percent(ope$ppv["ucl"]), ")"),
     detected_isup2p =    paste0(tab3["1", "1"], " (", format_percent(tab3["1", "1"]/tab3["Sum", "1"]), ")"),
     missed_isup2p =      paste0(tab3["0", "1"], " (", format_percent(tab3["0", "1"]/tab3["Sum", "1"]), ")"),
+    detected_isup3p =    paste0(tab4["1", "1"], " (", format_percent(tab4["1", "1"]/tab4["Sum", "1"]), ")"),
     missed_isup3p =      paste0(tab4["0", "1"], " (", format_percent(tab4["0", "1"]/tab4["Sum", "1"]), ")"),
     sensitivity =        paste0(format_percent(ope$sensitivity["est"]), " (", format_percent(ope$sensitivity["lcl"]), "-",  format_percent(ope$sensitivity["ucl"]), ")"),
     npv =                paste0(format_percent(ope$npv["est"]), " (", format_percent(ope$npv["lcl"]), "-",  format_percent(ope$npv["ucl"]), ")")
@@ -695,6 +691,7 @@ make_first_row_table_3 <- function(dat, d) {
     ppv =                "—",
     detected_isup2p =    paste(sum(d_isup2p),   myfmt(sum(d_isup2p[y == 1])/sum(d_isup2p))),
     missed_isup2p =      paste(0, myfmt(sum(d_isup2p[y == 0])/sum(d_isup2p))),
+    detected_isup3p =    paste(sum(d_isup3p),   myfmt(sum(d_isup3p[y == 1])/sum(d_isup3p))),
     missed_isup3p =      paste(0, myfmt(sum(d_isup3p[y == 0])/sum(d_isup3p))),
     sensitivity =        myfmt(mean(y[d_isup2p == 1]), FALSE),
     npv =                "—"
@@ -737,6 +734,7 @@ gt_table_3 <- function(tbl) {
   table_3_labels <- make_gt_table_labels()$table_3
   
   tbl |> 
+    select(-detected_isup3p) |> 
     gt() |> 
     (\(x) cols_label(x,
                      .list = table_3_labels[names(x[["_data"]])]
@@ -1135,7 +1133,7 @@ plot_dca <- function(dat, title){
 }
 
 
-
+# for alternative biopsy outcome definition
 gt_table_2_alt <- function(tbl) {
   table_2_labels <- make_gt_table_labels()$table_2
   
@@ -1165,7 +1163,7 @@ gt_table_2_alt <- function(tbl) {
 }
 
 
-
+# for alternative biopsy outcome definition
 gt_table_3_alt <- function(tbl) {
   table_3_labels <- make_gt_table_labels()$table_3_alt
   
@@ -1216,6 +1214,7 @@ make_gt_table_labels <- function() {
     npv = "NPV (95% CI)",
     detected_isup2p = "Detected ISUP Grade >=2, n (%)",
     missed_isup2p = "Missed ISUP Grade >=2, n (%)",
+    detected_isup3p = "Detected ISUP Grade >=3, n (%)",
     missed_isup3p = "Missed ISUP Grade >=3, n (%)",
     sensitivity = "Sensitivity (95% CI)",
     ppv = "PPV (95% CI)"
@@ -1301,9 +1300,6 @@ make_var_labels <- function() {
     "prevbx",                 "Previous negative biopsy",
     "dre_abnormal",           "Abnormal DRE",
     "five_ari",               "5-alpha reductase inhibitors use",
-    "pirads3p",               "PI-RADS score >=3",
-    "pirads4p",               "PI-RADS score >=4",
-    "piradsns",               "PI-RADS score missing",
     #     
     "cb_cores_total",         "Total number of biopsy cores",
     #
