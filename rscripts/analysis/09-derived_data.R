@@ -72,7 +72,8 @@ data_zipcode <- list(
 )
 
 # Stockholm3 data
-data_s3 <- select(data_raw$s3, sthlm3_id, risk_score)
+data_s3 <- select(data_raw$s3, sthlm3_id, risk_score, psa_a3p = transformed_tPSA)
+data_s3$psa_a3p <- as.numeric(data_s3$psa_a3p)
 # data_s3$in_s3_data <- TRUE
 
 
@@ -92,7 +93,8 @@ data_dictionary <- bind_rows(
     "cb_isup1",             "ISUP 1 Prostate Cancer",
     "cb_isup2p",            "ISUP ≥2 Prostate Cancer",
     "cb_isup3p",            "ISUP ≥3 Prostate Cancer",
-    "biopsy_year",          "Year of biopsy"
+    "biopsy_year",          "Year of biopsy",
+    "psa_a3p",              "PSA (ng/ml) for Stockholm3"
   )
 )
 
@@ -130,6 +132,7 @@ combined <- c(data_nice_processed,
          "white",
          "zip_code",
          "psa",
+         "psa_a3p",
          "risk_score",
          # "in_s3_data",
          "blood_date",
@@ -172,4 +175,4 @@ saveRDS(combined, here::here("data", "derived", paste0(format(Sys.time(), '%Y%m%
 # Save data and metadata in other formats
 openxlsx::write.xlsx(combined, paste0("~/desktop/", format(Sys.time(), '%Y%m%d'), "-septa.xlsx"))
 write_csv(combined, paste0("~/desktop/", format(Sys.time(), '%Y%m%d'), "-septa.csv"))
-openxlsx::write.xlsx(x, paste0("~/desktop/", format(Sys.time(), '%Y%m%d'), "-septa-dictionary.xlsx"))
+openxlsx::write.xlsx(data_dictionary, paste0("~/desktop/", format(Sys.time(), '%Y%m%d'), "-septa-dictionary.xlsx"))
