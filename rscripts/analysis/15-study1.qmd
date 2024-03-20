@@ -245,25 +245,25 @@ strata2_vars <- setNames(strata2_vars, labelled::var_label(septa_strata[, strata
 
 
 table_4_sa <- bind_rows(
-  map(
-    strata2_vars[3], \(s)
-    map(split(septa_strata, septa_strata[[s]]), \(dat)
-        imap(bloodtests_table_4, 
-             \(y, tl) make_row_table_3(dat = dat, d = "cb_isup2p", y = y, testlabel = tl)$out_df
-        ) |> bind_rows()
-    ) |> bind_rows(.id = "stratum")
+  # overall
+  map(strata2_vars[3], \(s)
+      map(split(septa_strata, septa_strata[[s]]), \(dat)
+          imap(bloodtests_table_4, 
+               \(y, tl) make_row_table_3(dat = dat, d = "cb_isup2p", y = y, testlabel = tl)$out_df
+          ) |> bind_rows()
+      ) |> bind_rows(.id = "stratum")
   ) |> bind_rows() |> 
     mutate(sa = "Overall",
            sa1 = "Overall", .before = everything()),
-  map(
-    strata2_vars[1:2], \(s1) 
-    map(split(septa_strata, septa_strata[[s1]]), \(s2) 
-        map(split(s2, s2[[strata2_vars[3]]]), \(dat)
-            imap(bloodtests_table_4, 
-                 \(y, tl) make_row_table_3(dat = dat, d = "cb_isup2p", y = y, testlabel = tl)$out_df
-            ) |> bind_rows()
-        ) |> bind_rows(.id = "stratum")
-    ) |> bind_rows(.id = "sa1")
+  # by race
+  map(strata2_vars[1:2], \(s1) 
+      map(split(septa_strata, septa_strata[[s1]]), \(s2) 
+          map(split(s2, s2[[strata2_vars[3]]]), \(dat)
+              imap(bloodtests_table_4, 
+                   \(y, tl) make_row_table_3(dat = dat, d = "cb_isup2p", y = y, testlabel = tl)$out_df
+              ) |> bind_rows()
+          ) |> bind_rows(.id = "stratum")
+      ) |> bind_rows(.id = "sa1")
   ) |> bind_rows(.id = "sa")
 )
 
@@ -635,7 +635,7 @@ tables_list$table_2_psa3 <- table_2_psa3 |>
 tables_list$table_2_psa3
 ```
 
-# Relative PPV and NPV for Stockholm≥15 vs PSA≥4 ng/ml
+# Relative PPV and NPV for Stockholm3≥{11, 15} vs PSA≥4 ng/ml
 
 Point estimates and 95% joint confidence region
 
@@ -643,9 +643,12 @@ Point estimates and 95% joint confidence region
 #| fig-width: 11.4
 #| fig-height: 8
 
-rpv_ellipse_data <- map(table_2, \(x) ellipse.pv.rpv(pv.rpv(x$data_table$y1y3), exponentiate = TRUE))
+rpv_ellipse_data <- list(
+  `11` = map(table_2, \(x) ellipse.pv.rpv(pv.rpv(x$data_table$y1y2), exponentiate = TRUE)),
+  `15` = map(table_2, \(x) ellipse.pv.rpv(pv.rpv(x$data_table$y1y3), exponentiate = TRUE))
+)
 
-plot_rpv_ellipse(rpv_ellipse_data)
+imap(rpv_ellipse_data, \(x, y) plot_rpv_ellipse(x, y))
 ```
 
 # Table 1 by SEPTA recruitment
@@ -696,12 +699,8 @@ tables_list$table1_additional_stats
 bloodtest_crosstable <- 
   map(bloodtests[2:3], \(p)
       map(bloodtests[4:5], \(s) {
-        myfmt <- function(x) {
-          sprintf("%4.2f", x)
-        }
-        
         c.kappa <- function(x) {
-          # x = prop.table
+          # x must be prop.table
           p.o <- sum(diag(x))
           p.yes <- rowSums(x)[2] * colSums(x)[2]
           p.no  <- rowSums(x)[1] * colSums(x)[1]
@@ -718,26 +717,25 @@ bloodtest_crosstable <-
                                         .strict = FALSE)
         
         kappa <- c.kappa(prop.table(table(df[[p]], df[[s]])))
-        footnote <- paste0("Cohen's kappa coefficient: ", myfmt(kappa), ".")
+        footnote <- paste0("Cohen's kappa coefficient: ", 
+                           sprintf("%4.2f", kappa), ".")
         
-        xtab <- df |> 
+        df |> 
           tbl_cross(row = p, 
                     col = s, 
-                    percent = "cell")  
-        
-        # print as gt for html purposes...
-        print(xtab |> as_gt() |> tab_footnote(footnote)) 
-        
-        #...but export as flextable to save further down 
-        # exporting tbl_cross tables with gtsave corrupts the whole docx
-        xtab |>
-          as_flex_table() |>
-          flextable::add_footer_lines(footnote)
+                    percent = "cell") |> 
+          modify_header(label = ".") |> # see https://github.com/ddsjoberg/gtsummary/issues/1613
+          as_gt() |> 
+          tab_footnote(footnote) 
       }
       
       )
   ) |> 
   list_flatten()
+```
+
+```{r results='asis'}
+bloodtest_crosstable
 ```
 
 ```{r}
@@ -746,25 +744,46 @@ names(bloodtest_crosstable) <- paste0("bloodtest_crosstable_",
 tables_list <- c(tables_list, bloodtest_crosstable)
 ```
 
+Extra: Spearman's rank correlation coefficient
+
+```{r}
+#| fig-width: 12.1
+#| fig-height: 8.5
+
+ spearman <- split(septa_with_overall, ~ race) |> 
+  map_dfr(~ cor.test(.$psa, .$risk_score, method = "spearman", exact = FALSE)$estimate, .id = "race") |> 
+  mutate(race = factor(race, levels = c("Overall", levels(septa$race)))) 
+
+ggplot(septa_with_overall, aes(x = psa, y = risk_score/100, color = race)) +
+  geom_point(data = select(septa, -race), 
+             aes(x = psa, y = risk_score/100), 
+             inherit.aes = FALSE, color = grey(0.8)) + 
+  geom_point(show.legend = FALSE) +
+  geom_label(data = spearman, 
+             aes(8, 0.012,
+                 label = paste0("Spearman's correlation coefficient = ", sprintf("%5.3f", rho))),
+             inherit.aes = FALSE, 
+             label.size = 0) +
+  facet_wrap(~ race, nrow = 2, scales = "free") +
+  scale_x_log10() +
+  scale_y_continuous(trans = "logit", breaks = c(1, 3, seq(10, 90, 10), 97, 99)/100, limits = c(0.01, 0.99),
+                     labels = \(x) round(x*100, 0)) +
+  scale_color_manual(values = c("Black", RColorBrewer::brewer.pal(4, "Set1"))) +
+  theme_minimal(base_size = 12) +
+  theme(strip.text = element_text(size = 13)) +
+  labs(x = "PSA (ng/ml)",
+       y = "Stockholm3 Risk Score",
+       caption = "x-axis is in the log10 scale. y-axis is in the logit scale.") 
+```
+
+
 
 ```{r}
 if(params$save_tables == "true") {
-  which_bloodtest <- grep("^bloodtest_crosstable_", names(tables_list))
-  filename_out <- here::here("output", paste0(params$time, "-septa_tables_study1.docx"))
+  filename_save <- here::here("output", paste0(params$time, "-septa_tables_study1.docx"))
                          
-  gt_group(.list = tables_list[-which_bloodtest]) |> 
-    gtsave(filename_out)
-  
-  Sys.sleep(5)
-  
-  # exporting tbl_cross tables with gtsave corrupts the whole docx
-  doc <- read_docx(filename_out)
-  walk(tables_list[which_bloodtest], \(x) {
-    doc <- body_add_break(doc)
-    doc <- flextable::body_add_flextable(doc, value = x)
-  })
-  print(doc, target = filename_out)
-
+  gt_group(.list = tables_list) |> 
+    gtsave(filename_save)
 }
 ```
 

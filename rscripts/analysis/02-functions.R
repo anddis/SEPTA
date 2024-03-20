@@ -1249,7 +1249,7 @@ make_gt_table_labels <- function() {
 }
 
 
-plot_rpv_ellipse <- function(obj) {
+plot_rpv_ellipse <- function(obj, s3_threshold) {
   myfmt <- function(x) {
     sprintf("%4.2f", x)
   }
@@ -1264,8 +1264,8 @@ plot_rpv_ellipse <- function(obj) {
            label = paste0("rPPV: ", myfmt(rppv), "\n rNPV: ", myfmt(rnpv)))
   
   ggplot(data_ellipse, aes(x = rppv, y = rnpv)) +
-    geom_path(linewidth = 1.1) +
-    geom_point(data = data_centre, aes(x = rppv, y = rnpv)) +
+    geom_polygon(colour = "black", fill = "gray", alpha = 0.5, linewidth = 0.3) +
+    geom_point(data = data_centre, aes(x = rppv, y = rnpv), cex = 0.7) +
     geom_label(data = data_centre, aes(x = 1.15, y = 1.6, label = label), size = 4, label.size = NA) + 
     geom_vline(xintercept = 1, lty = 3) +
     geom_hline(yintercept = 1, lty = 3) +
@@ -1275,9 +1275,9 @@ plot_rpv_ellipse <- function(obj) {
     scale_y_continuous(trans = "log", limits = c(0.9, 1.8), breaks = seq(0.9, 1.8, 0.1), labels = scales::label_number(accuracy = .1)) +
     labs(x = "rPPV",
          y = "rNPV",
-         title = "Relative Predictive Values with 95% Confidence Region (ISUP>=2 cancers)",
-         subtitle = "Stockholm3 >=15 versus PSA >=4 ng/ml",
-         caption = "Dotted lines indicate no difference in Predictive Values.\nrPPV: relative Positive Predictive Value. rNPV: relative Negative Predictive Value.") +
+         title = "Relative Predictive Values with 95% Confidence Region (ISUP>=2 cancer)",
+         subtitle = paste0("Stockholm3 >=", s3_threshold, " versus PSA >=4 ng/ml"),
+         caption = "Shaded area is the 95% Confidence Region.\nDotted line indicates no difference in Predictive Values.\nrPPV: relative Positive Predictive Value. rNPV: relative Negative Predictive Value.") +
     theme(strip.text = element_text(size = 13))
 }
 
@@ -1286,26 +1286,27 @@ make_var_labels <- function() {
   
   tribble( # add as needed
     ~var,                ~label,
-    "al_isup2p",         "Unfavourable Intermediate or higher cancer",
+    "al_isup2p",              "Unfavourable Intermediate or higher cancer",
+    #     
+    "cb_benign",              "Benign biopsy",
+    "cb_isup1",               "ISUP Grade 1 cancer",
+    "cb_isup2p",              "ISUP Grade >= 2 cancer",
+    "cb_isup3p",              "ISUP Grade >= 3 cancer",
+    "psa_3p",                 "PSA>=3 ng/ml",
+    "psa_4p",                 "PSA>=4 ng/ml",
+    "s3_11p",                 "Stockholm3>=11",
+    "s3_15p",                 "Stockholm3>=15",
+    #     
+    "fhpca",                  "Family history of prostate cancer",
+    "prevbx",                 "Previous negative biopsy",
+    "dre_abnormal",           "Abnormal DRE",
+    "five_ari",               "5-alpha reductase inhibitors use",
+    "pirads3p",               "PI-RADS score >=3",
+    "pirads4p",               "PI-RADS score >=4",
+    "piradsns",               "PI-RADS score missing",
+    #     
+    "cb_cores_total",         "Total number of biopsy cores",
     #
-    "cb_benign",         "Benign biopsy",
-    "cb_isup1",          "ISUP Grade 1 cancer",
-    "cb_isup2p",         "ISUP Grade >= 2 cancer",
-    "cb_isup3p",         "ISUP Grade >= 3 cancer",
-    "psa_3p",            "PSA>=3 ng/ml",
-    "psa_4p",            "PSA>=4 ng/ml",
-    "s3_11p",            "Stockholm3>=11",
-    "s3_15p",            "Stockholm3>=15",
-    #
-    "fhpca",             "Family history of prostate cancer",
-    "prevbx",            "Previous negative biopsy",
-    "dre_abnormal",      "Abnormal DRE",
-    "five_ari",          "5-alpha reductase inhibitors use",
-    "pirads3p",          "PI-RADS score >=3",
-    "pirads4p",          "PI-RADS score >=4",
-    "piradsns",          "PI-RADS score missing",
-    #
-    "cb_cores_total",    "Total number of biopsy cores",
     "strata_mri",             "Men with MRI scans",
     "strata_pirads_score",    "PI-RADS score",
     "strata_tbx",             "Men with targeted biopsies",
@@ -1321,7 +1322,7 @@ make_var_labels <- function() {
   )
 }
 
-# Added rule of three for CIs if {sesn,spec,ppv,npv}={0,1}
+# Added rule of three for CIs if {sens,spec,ppv,npv}={0,1}
 acc.1test.Ro3 <- function (tab, alpha, testname, ...) 
 {
   if (missing(tab)) 
