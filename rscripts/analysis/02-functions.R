@@ -501,9 +501,9 @@ make_table1_vars <- function(dat) {
   )
   
   # MRI PIRADS
-  dat$pirads3p <- as.integer(dat$pirads_score >= "PIRADS3")
-  dat$pirads4p <- as.integer(dat$pirads_score >= "PIRADS4")
-  dat$piradsns <- as.integer(dat$pirads_score == "No score")
+  # dat$pirads3p <- as.integer(dat$pirads_score >= "PIRADS3")
+  # dat$pirads4p <- as.integer(dat$pirads_score >= "PIRADS4")
+  # dat$piradsns <- as.integer(dat$pirads_score == "No score")
   
   # Total number of cores
   dat$cb_cores_total <- apply(dat[, c("systematic_cores_total", "target_cores_total")], 

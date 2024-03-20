@@ -57,7 +57,7 @@ Derived data time stamp: ``r format(attr(septa, "datetime_created"), usetz = TRU
 tables_list$table_1 <- septa |>
   make_table1_vars() |> 
   select(race, race_copy, age, psa, risk_score, dre_abnormal, fhpca, prevbx, five_ari, 
-         risk_score, targeted_biopsy_performed, pirads3p, pirads4p, piradsns, cb_cores_total, 
+         risk_score, mri_performed, pirads_score, targeted_biopsy_performed, cb_cores_total, 
          cb_benign, cb_isup1, cb_isup2p, al_isup2p, cb_isup3p) |> 
   tbl_summary(by = race,
               missing = "ifany",
@@ -654,10 +654,10 @@ imap(rpv_ellipse_data, \(x, y) plot_rpv_ellipse(x, y))
 # Table 1 by SEPTA recruitment
 ```{r}
 tables_list$table_1_biobank <- septa |>
+  make_strata_vars() |> 
   make_table1_vars() |> 
-  mutate(strata_septa = factor(!grepl("^northwestern|^uhn", centre_id), labels = make_factor_labels()$ny)) |> 
   select(race, age, psa, risk_score, dre_abnormal, fhpca, prevbx, five_ari, 
-         risk_score, targeted_biopsy_performed, pirads3p, pirads4p, piradsns, cb_cores_total, 
+         risk_score, mri_performed, pirads_score, targeted_biopsy_performed, cb_cores_total, 
          cb_benign, cb_isup1, cb_isup2p, al_isup2p, cb_isup3p, strata_septa) |> 
   tbl_summary(by = strata_septa,
               missing = "ifany",
@@ -774,6 +774,47 @@ ggplot(septa_with_overall, aes(x = psa, y = risk_score/100, color = race)) +
   labs(x = "PSA (ng/ml)",
        y = "Stockholm3 Risk Score",
        caption = "x-axis is in the log10 scale. y-axis is in the logit scale.") 
+```
+
+# PIRADS score by combined biopsy outcome
+
+```{r}
+xtabs(~ pirads_score + combined_grade_group, data = septa) |> 
+  addmargins()
+```
+
+# Concordance between PSA and PSA for Stockholm3
+
+```{r}
+pearson <- with(septa, cor.test(psa, psa_a3p))
+```
+
+Pearson's correlation coefficient between PSA and PSA for Stockholm3: `r sprintf("%5.3f", pearson$estimate)`.
+
+```{r}
+#| fig-width: 6
+#| fig-height: 6
+ggplot(septa, aes(x = psa, y = psa_a3p)) +
+  geom_point(pch = 21, cex = 2, alpha = 0.7) +
+  geom_abline(col = "red", lwd = 0.8) + 
+  scale_x_log10(limits = c(0.1, 2000), labels = scales::label_number()) +
+  scale_y_log10(limits = c(0.1, 2000), labels = scales::label_number()) +
+  annotate("text", x = 100, y = 0.15, label = paste0("Pearson's correlation coefficient = ", sprintf("%5.3f", pearson$estimate))) +
+  theme_minimal(base_size = 12) +
+  labs(x = "PSA (ng/ml)",
+       y = "PSA (ng/ml) for Stockholm3",
+       caption = "Red line is the identity line.") +
+  theme(aspect.ratio = 1)
+
+# MA plot
+# ggplot(septa, aes(x = 0.5*(log2(psa)+log2(psa_a3p)), y = log2(psa)-log2(psa_a3p))) +
+#   geom_point(pch = 21, cex = 2) +
+#   geom_hline(yintercept = 0, col = "red", lwd = 1) +
+#   geom_smooth(se = FALSE, col = "deepskyblue") +
+#   scale_y_continuous(limits = c(-8, 8), n.breaks = 8) + 
+#   theme_minimal(base_size = 12) +
+#   labs(x = "mean log2-PSA",
+#        y = "log2 PSA-ratio")
 ```
 
 
