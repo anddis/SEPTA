@@ -1265,7 +1265,7 @@ plot_rpv_ellipse <- function(obj, s3_threshold) {
   ggplot(data_ellipse, aes(x = rppv, y = rnpv)) +
     geom_polygon(colour = "black", fill = "gray", alpha = 0.5, linewidth = 0.3) +
     geom_point(data = data_centre, aes(x = rppv, y = rnpv), cex = 0.7) +
-    geom_label(data = data_centre, aes(x = 1.15, y = 1.6, label = label), size = 4, label.size = NA) + 
+    geom_label(data = data_centre, aes(x = 1.15, y = 1.6, label = label), size = 4, fontface = "bold", label.size = NA) + 
     geom_vline(xintercept = 1, lty = 3) +
     geom_hline(yintercept = 1, lty = 3) +
     facet_wrap(~ race, scales = "free") +
@@ -1278,6 +1278,54 @@ plot_rpv_ellipse <- function(obj, s3_threshold) {
          subtitle = paste0("Stockholm3 >=", s3_threshold, " versus PSA >=4 ng/ml"),
          caption = "Shaded area is the 95% Confidence Region.\nDotted line indicates no difference in Predictive Values.\nrPPV: relative Positive Predictive Value. rNPV: relative Negative Predictive Value.") +
     theme(strip.text = element_text(size = 13))
+}
+
+plot_rpv_ellipse_overlay <- function(obj) {
+  myfmt <- function(x) {
+    sprintf("%4.2f", x)
+  }
+  
+  data_ellipse <- map(rpv_ellipse_data, \(x) 
+                     map(x, \(y) as.data.frame(y$"ellipse")) |> 
+                       bind_rows(.id = "race")) |> 
+    bind_rows(.id = "s3_threshold") |> 
+    mutate(race = factor(race, levels = make_factor_labels()$race_overall))
+  
+  data_centre <- map(rpv_ellipse_data, \(x) 
+                    map(x, \(y) as.data.frame(t(y$"centre"))) |> 
+                      bind_rows(.id = "race")) |> 
+    bind_rows(.id = "s3_threshold")  |> 
+    mutate(race = factor(race, levels = make_factor_labels()$race_overall),
+           label = paste0("rPPV: ", myfmt(rppv), "\n rNPV: ", myfmt(rnpv)),
+           y_pos = 1.60,
+           x_pos = 1.15 + (s3_threshold == 15)*0.4)
+  
+  mycolors <- c("tomato3", "deepskyblue3")
+  
+  ggplot(data_ellipse, aes(x = rppv, y = rnpv, fill = paste0(">=", s3_threshold))) +
+    geom_polygon(alpha = 0.4) +
+    geom_point(data = data_centre, aes(x = rppv, y = rnpv, color = s3_threshold), 
+               inherit.aes = FALSE, show.legend = FALSE) +
+    geom_label(data = data_centre, aes(x = x_pos, y = y_pos, label = label, color = s3_threshold), 
+               size = 4, fontface = "bold", 
+               label.size = NA, inherit.aes = FALSE, show.legend = FALSE) + 
+    geom_vline(xintercept = 1, lty = 3) +
+    geom_hline(yintercept = 1, lty = 3) +
+    facet_wrap(~ race, scales = "free") +
+    theme_minimal(base_size = 12) +
+    scale_x_continuous(trans = "log", limits = c(0.9, 1.8), breaks = seq(0.9, 1.8, 0.1), labels = scales::label_number(accuracy = .1)) +
+    scale_y_continuous(trans = "log", limits = c(0.9, 1.8), breaks = seq(0.9, 1.8, 0.1), labels = scales::label_number(accuracy = .1)) +
+    scale_fill_manual(values = mycolors) + 
+    scale_color_manual(values = mycolors) + 
+    labs(x = "rPPV",
+         y = "rNPV",
+         title = "Relative Predictive Values with 95% Confidence Region (ISUP>=2 cancer)",
+         subtitle = paste0("Stockholm3 >=11 and Stockholm3 >=15  versus PSA >=4 ng/ml"),
+         caption = "Shaded area is the 95% Confidence Region.\nDotted line indicates no difference in Predictive Values.\nrPPV: relative Positive Predictive Value. rNPV: relative Negative Predictive Value.",
+         fill = "Stockholm3 threshold:") +
+    theme(strip.text = element_text(size = 13),
+          legend.position = "bottom",
+          aspect.ratio = 1)
 }
 
 

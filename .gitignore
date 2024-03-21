@@ -1,7 +1,8 @@
 # Include only R files in directories /rscripts/analysis and /rscripts/power
 /data/
 /documents/
-/output/
+/output/*
+!/output/Ω-septa_study1.html
 /rscripts/sandbox/
 /rscripts/analysis/*
 !/rscripts/analysis/*.R

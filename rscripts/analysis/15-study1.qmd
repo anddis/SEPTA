@@ -640,15 +640,16 @@ tables_list$table_2_psa3
 Point estimates and 95% joint confidence region
 
 ```{r}
-#| fig-width: 11.4
-#| fig-height: 8
+#| fig-width: 12.5
+#| fig-height: 10
 
 rpv_ellipse_data <- list(
   `11` = map(table_2, \(x) ellipse.pv.rpv(pv.rpv(x$data_table$y1y2), exponentiate = TRUE)),
   `15` = map(table_2, \(x) ellipse.pv.rpv(pv.rpv(x$data_table$y1y3), exponentiate = TRUE))
 )
 
-imap(rpv_ellipse_data, \(x, y) plot_rpv_ellipse(x, y))
+#imap(rpv_ellipse_data, \(x, y) plot_rpv_ellipse(x, y))
+plot_rpv_ellipse_overlay(rpv_ellipse_data)
 ```
 
 # Table 1 by SEPTA recruitment
@@ -750,7 +751,7 @@ Extra: Spearman's rank correlation coefficient
 #| fig-width: 12.1
 #| fig-height: 8.5
 
- spearman <- split(septa_with_overall, ~ race) |> 
+spearman <- split(septa_with_overall, ~ race) |> 
   map_dfr(~ cor.test(.$psa, .$risk_score, method = "spearman", exact = FALSE)$estimate, .id = "race") |> 
   mutate(race = factor(race, levels = c("Overall", levels(septa$race)))) 
 
@@ -765,7 +766,7 @@ ggplot(septa_with_overall, aes(x = psa, y = risk_score/100, color = race)) +
              inherit.aes = FALSE, 
              label.size = 0) +
   facet_wrap(~ race, nrow = 2, scales = "free") +
-  scale_x_log10() +
+  scale_x_log10(limits = c(0.1, 2000), labels = scales::label_number()) +
   scale_y_continuous(trans = "logit", breaks = c(1, 3, seq(10, 90, 10), 97, 99)/100, limits = c(0.01, 0.99),
                      labels = \(x) round(x*100, 0)) +
   scale_color_manual(values = c("Black", RColorBrewer::brewer.pal(4, "Set1"))) +
@@ -805,16 +806,23 @@ ggplot(septa, aes(x = psa, y = psa_a3p)) +
        y = "PSA (ng/ml) for Stockholm3",
        caption = "Red line is the identity line.") +
   theme(aspect.ratio = 1)
+```
 
-# MA plot
-# ggplot(septa, aes(x = 0.5*(log2(psa)+log2(psa_a3p)), y = log2(psa)-log2(psa_a3p))) +
-#   geom_point(pch = 21, cex = 2) +
-#   geom_hline(yintercept = 0, col = "red", lwd = 1) +
-#   geom_smooth(se = FALSE, col = "deepskyblue") +
-#   scale_y_continuous(limits = c(-8, 8), n.breaks = 8) + 
-#   theme_minimal(base_size = 12) +
-#   labs(x = "mean log2-PSA",
-#        y = "log2 PSA-ratio")
+Extra: MA plot for PSA versus PSA for Stockholm3
+
+```{r}
+#| fig-width: 6
+#| fig-height: 6
+ggplot(septa, aes(x = 0.5*(log2(psa)+log2(psa_a3p)), y = log2(psa)-log2(psa_a3p))) +
+  geom_point(pch = 21, cex = 2, alpha = 0.5) +
+  geom_hline(yintercept = 0, col = "red", lwd = 0.7) +
+  geom_smooth(method = "loess", se = FALSE, col = "deepskyblue", lwd = 1.2) +
+  scale_y_continuous(limits = c(-8, 8), n.breaks = 8) +
+  theme_minimal(base_size = 12) +
+  labs(x = "A = log2(PSA * PSA for Stockholm3)/2",
+       y = "M = log2(PSA / PSA for Stockholm3)",
+       caption = "Red line is referent line at M=0 (ie, ratio=1). Blue line is loess smoother.") +
+  theme(aspect.ratio = 1)
 ```
 
 
