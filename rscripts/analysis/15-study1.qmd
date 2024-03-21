@@ -1,5 +1,6 @@
 ---
 title: "SEPTA --- Study 1"
+subtitle: "Stockholm3 in a multi-ethnic cohort for prostate cancer detection (SEPTA): a prospective multicentered trial"
 author: 
   - name: Andrea Discacciati
 date: now
@@ -745,12 +746,12 @@ names(bloodtest_crosstable) <- paste0("bloodtest_crosstable_",
 tables_list <- c(tables_list, bloodtest_crosstable)
 ```
 
-Extra: Spearman's rank correlation coefficient
 
-```{r}
+```{r, include = FALSE}
 #| fig-width: 12.1
 #| fig-height: 8.5
 
+# Extra: Spearman's rank correlation coefficient
 spearman <- split(septa_with_overall, ~ race) |> 
   map_dfr(~ cor.test(.$psa, .$risk_score, method = "spearman", exact = FALSE)$estimate, .id = "race") |> 
   mutate(race = factor(race, levels = c("Overall", levels(septa$race)))) 
@@ -808,23 +809,57 @@ ggplot(septa, aes(x = psa, y = psa_a3p)) +
   theme(aspect.ratio = 1)
 ```
 
-Extra: MA plot for PSA versus PSA for Stockholm3
+Extra: MA plot for PSA versus PSA for Stockholm3 
 
 ```{r}
 #| fig-width: 6
 #| fig-height: 6
-ggplot(septa, aes(x = 0.5*(log2(psa)+log2(psa_a3p)), y = log2(psa)-log2(psa_a3p))) +
+ggplot(septa, aes(x = 0.5*(log10(psa)+log10(psa_a3p)), y = log10(psa)-log10(psa_a3p))) +
   geom_point(pch = 21, cex = 2, alpha = 0.5) +
   geom_hline(yintercept = 0, col = "red", lwd = 0.7) +
   geom_smooth(method = "loess", se = FALSE, col = "deepskyblue", lwd = 1.2) +
-  scale_y_continuous(limits = c(-8, 8), n.breaks = 8) +
+  scale_y_continuous(limits = c(-2.5, 2.5), n.breaks = 10) +
+  scale_x_continuous(n.breaks = 10) +
   theme_minimal(base_size = 12) +
-  labs(x = "A = log2(PSA * PSA for Stockholm3)/2",
-       y = "M = log2(PSA / PSA for Stockholm3)",
+  labs(x = "A = log10(PSA * PSA for Stockholm3)/2",
+       y = "M = log10(PSA / PSA for Stockholm3)",
        caption = "Red line is referent line at M=0 (ie, ratio=1). Blue line is loess smoother.") +
   theme(aspect.ratio = 1)
 ```
 
+(MA plot is a 45-degrees--rotated and stretched version of the standard scatter 
+plot with axes in the log-scale.)
+
+```{r include = TRUE, echo = TRUE}
+#| fig-width: 6
+#| fig-height: 6
+dta <- with(septa, cbind(
+  log10(psa_a3p),
+  log10(psa),
+  0.5*(log10(psa * psa_a3p)), # A transform
+  log10(psa / psa_a3p))       # M transform
+)
+
+# Rotation matrix
+R <- matrix(c(cos(pi/4), -sin(pi/4), 
+              sin(pi/4), cos(pi/4)),
+         nrow = 2, ncol = 2, byrow = TRUE)
+
+# Stretch matrix
+S <- matrix(c(1/sqrt(2), 0, 
+              0, sqrt(2)),
+            nrow = 2, ncol = 2, byrow = TRUE)
+
+head(dta[, 1:2] %*% R %*% S)
+head(dta[, 3:4])
+
+o <- dta[, 1:2] %*% R
+oo <- o %*% S
+par(pty = "s")
+plot(dta[, 1], dta[, 2], ylim = c(-2.5, 4), xlim = c(-2.5, 4), pch = 20, cex = 0.5, col = "gray")
+points(o[, 1], o[, 2], col = "tomato", pch = 20, cex = 0.5)
+points(oo[, 1], oo[, 2], col = "gold3", pch = 20, cex = 0.5)
+```
 
 
 ```{r}

@@ -16,7 +16,7 @@ quarto::quarto_render(
 )
 file.copy(here::here("rscripts", "analysis", "15-study1.html"), 
           here::here("output", file_name))
-# copy with fixed file name for github purposes, Ω is sorted last in macos
+# copy with fixed file name, Ω is sorted last in macos
 file.copy(here::here("rscripts", "analysis", "15-study1.html"), 
           here::here("output", "Ω-septa_study1.html"), overwrite = TRUE)
 file.remove(here::here("rscripts", "analysis", "15-study1.html"))

@@ -2,7 +2,7 @@
 /data/
 /documents/
 /output/*
-!/output/Ω-septa_study1.html
+#!/output/Ω-septa_study1.html
 /rscripts/sandbox/
 /rscripts/analysis/*
 !/rscripts/analysis/*.R
