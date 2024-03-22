@@ -57,7 +57,7 @@ Derived data time stamp: ``r format(attr(septa, "datetime_created"), usetz = TRU
 ```{r}
 tables_list$table_1 <- septa |>
   make_table1_vars() |> 
-  select(race, race_copy, age, psa, risk_score, dre_abnormal, fhpca, prevbx, five_ari, 
+  select(race, age, psa, risk_score, dre_abnormal, fhpca, prevbx, five_ari, 
          risk_score, mri_performed, pirads_score, targeted_biopsy_performed, cb_cores_total, 
          cb_benign, cb_isup1, cb_isup2p, al_isup2p, cb_isup3p) |> 
   tbl_summary(by = race,
@@ -830,7 +830,7 @@ ggplot(septa, aes(x = 0.5*(log10(psa)+log10(psa_a3p)), y = log10(psa)-log10(psa_
 (MA plot is a 45-degrees--rotated and stretched version of the standard scatter 
 plot with axes in the log-scale.)
 
-```{r include = TRUE, echo = TRUE}
+```{r include = FALSE, eval = FALSE}
 #| fig-width: 6
 #| fig-height: 6
 dta <- with(septa, cbind(

@@ -175,4 +175,20 @@ saveRDS(combined, here::here("data", "derived", paste0(format(Sys.time(), '%Y%m%
 # Save data and metadata in other formats
 openxlsx::write.xlsx(combined, paste0("~/desktop/", format(Sys.time(), '%Y%m%d'), "-septa.xlsx"))
 write_csv(combined, paste0("~/desktop/", format(Sys.time(), '%Y%m%d'), "-septa.csv"))
-openxlsx::write.xlsx(data_dictionary, paste0("~/desktop/", format(Sys.time(), '%Y%m%d'), "-septa-dictionary.xlsx"))
+openxlsx::write.xlsx(Reduce(
+  left_join,
+  list(
+    data_dictionary[data_dictionary$var %in% names(combined), ],
+    enframe(map_chr(combined, \(x) paste(class(x), collapse = ", ")),
+            name = "var", value = "class"),
+    enframe(map_chr(combined, \(x) {
+      if (is.factor(x)) 
+        paste(levels(x), collapse = ", ")
+      else 
+        paste(range(x, na.rm = TRUE), collapse = " - ")
+    }),
+    name = "var", value = "levels_or_range"),
+    enframe(map_int(combined, \(x) sum(is.na(x))),
+            name = "var", value = "n_NA")
+  )
+), paste0("~/desktop/", format(Sys.time(), '%Y%m%d'), "-septa-dictionary.xlsx"))

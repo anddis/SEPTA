@@ -469,9 +469,6 @@ make_alternative_pca_vars <- function(dat) {
 
 make_table1_vars <- function(dat) {
   
-  # Copy of Race
-  dat$race_copy <- dat$race
-  
   # FH PCa
   dat$fhpca <- case_when(
     dat$family_hx_pca == "Yes" ~ 1,
