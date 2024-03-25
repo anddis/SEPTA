@@ -1,5 +1,5 @@
 ---
-title: "SEPTA --- Study 1"
+title: "SEPTA --- Data analysis report"
 subtitle: "Stockholm3 in a multi-ethnic cohort for prostate cancer detection (SEPTA): a prospective multicentered trial"
 author: 
   - name: Andrea Discacciati
@@ -644,13 +644,15 @@ Point estimates and 95% joint confidence region
 #| fig-width: 12.5
 #| fig-height: 10
 
-rpv_ellipse_data <- list(
-  `11` = map(table_2, \(x) ellipse.pv.rpv(pv.rpv(x$data_table$y1y2), exponentiate = TRUE)),
-  `15` = map(table_2, \(x) ellipse.pv.rpv(pv.rpv(x$data_table$y1y3), exponentiate = TRUE))
+rpv_data <- list(
+  `11` = map(table_2, \(x) pv.rpv(x$data_table$y1y2)),
+  `15` = map(table_2, \(x) pv.rpv(x$data_table$y1y3))
 )
 
-#imap(rpv_ellipse_data, \(x, y) plot_rpv_ellipse(x, y))
-plot_rpv_ellipse_overlay(rpv_ellipse_data)
+#imap(rpv_data, \(x, y) plot_rpv_ellipse(x, y))
+plot_rpv_ellipse_overlay(rpv_data)
+
+gt_table_rpv(rpv_data)
 ```
 
 # Table 1 by SEPTA recruitment

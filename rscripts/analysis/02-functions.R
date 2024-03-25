@@ -1078,7 +1078,7 @@ make_table_auc <- function(dat, outcome) {
 
 gt_table_auc <- function(tbl) {
   tbl |> 
-  gt() |> 
+    gt() |> 
     cols_label(
       race = "Race",
       n = "n",
@@ -1099,6 +1099,27 @@ gt_table_auc <- function(tbl) {
       columns = race
     ) |> 
     tab_options(table.font.size = px(14))
+}
+
+gt_table_rpv <- function(tbl){
+  map(tbl, 
+      \(x) map(x, tidy_pv.rpv) |> 
+        bind_rows(.id = "race")) |> 
+    bind_rows(.id = "s3_threshold") |> 
+    mutate(s3_threshold = paste0("Stockholm3 >=", s3_threshold, " versus PSA >=4 ng/ml")) |> 
+    pivot_wider(names_from = pv, values_from = value) |> 
+    gt(groupname_col = "s3_threshold") |> 
+    cols_label(race = "Race", 
+               ppv = "rPPV (95% CI)",  
+               npv = "rNPV (95% CI)") |> 
+    tab_style(
+      style = cell_text(weight = "bold"),
+      locations = cells_column_labels()
+    ) |> 
+    tab_style(
+      style = cell_text(style = "italic", align = "center"),
+      locations = cells_row_groups()
+    )
 }
 
 
@@ -1250,11 +1271,11 @@ plot_rpv_ellipse <- function(obj, s3_threshold) {
     sprintf("%4.2f", x)
   }
   
-  data_ellipse <- map(obj,\(x) as.data.frame(x$ellipse)) |> 
+  data_ellipse <- map(obj, \(x) as.data.frame(ellipse.pv.rpv(x, exponentiate = TRUE)$ellipse)) |> 
     bind_rows(.id = "race") |> 
     mutate(race = factor(race, levels = c("Overall", levels(septa$race)))) 
   
-  data_centre <- map(obj,\(x) as.data.frame(as.list(x$centre))) |> 
+  data_centre <- map(obj, \(x) as.data.frame(as.list(ellipse.pv.rpv(x, exponentiate = TRUE)$centre))) |> 
     bind_rows(.id = "race") |> 
     mutate(race = factor(race, levels = c("Overall", levels(septa$race))),
            label = paste0("rPPV: ", myfmt(rppv), "\n rNPV: ", myfmt(rnpv)))
@@ -1262,7 +1283,7 @@ plot_rpv_ellipse <- function(obj, s3_threshold) {
   ggplot(data_ellipse, aes(x = rppv, y = rnpv)) +
     geom_polygon(colour = "black", fill = "gray", alpha = 0.5, linewidth = 0.3) +
     geom_point(data = data_centre, aes(x = rppv, y = rnpv), cex = 0.7) +
-    geom_label(data = data_centre, aes(x = 1.15, y = 1.6, label = label), size = 4, fontface = "bold", label.size = NA) + 
+    geom_label(data = data_centre, aes(x = 1.15, y = 1.6, label = label), size = 4, label.size = NA) + 
     geom_vline(xintercept = 1, lty = 3) +
     geom_hline(yintercept = 1, lty = 3) +
     facet_wrap(~ race, scales = "free") +
@@ -1277,19 +1298,28 @@ plot_rpv_ellipse <- function(obj, s3_threshold) {
     theme(strip.text = element_text(size = 13))
 }
 
+tidy_pv.rpv <- function(obj) {
+  myfmt <- function(x) {
+    sprintf("%4.2f", x)
+  }
+  
+  map_chr(obj[c("ppv", "npv")], \(x) paste0(myfmt(x[3]), " (", myfmt(x[5]), "-", myfmt(x[6]), ")")) |> 
+   enframe(name = "pv")
+}
+
 plot_rpv_ellipse_overlay <- function(obj) {
   myfmt <- function(x) {
     sprintf("%4.2f", x)
   }
   
-  data_ellipse <- map(rpv_ellipse_data, \(x) 
-                     map(x, \(y) as.data.frame(y$"ellipse")) |> 
+  data_ellipse <- map(obj, \(x) 
+                     map(x, \(y) as.data.frame(ellipse.pv.rpv(y, exponentiate = TRUE)$ellipse)) |> 
                        bind_rows(.id = "race")) |> 
     bind_rows(.id = "s3_threshold") |> 
     mutate(race = factor(race, levels = make_factor_labels()$race_overall))
   
-  data_centre <- map(rpv_ellipse_data, \(x) 
-                    map(x, \(y) as.data.frame(t(y$"centre"))) |> 
+  data_centre <- map(obj, \(x) 
+                    map(x, \(y) as.data.frame(t(ellipse.pv.rpv(y, exponentiate = TRUE)$centre))) |> 
                       bind_rows(.id = "race")) |> 
     bind_rows(.id = "s3_threshold")  |> 
     mutate(race = factor(race, levels = make_factor_labels()$race_overall),
