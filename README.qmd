@@ -10,6 +10,10 @@ Home page: https://ki.se/en/meb/the-septa-sthlm3-trial
 
 SAP: https://ki.se/media/258554/download
 
+Data analysis report: https://html-preview.github.io/?url=https://github.com/anddis/SEPTA/blob/main/output/%CE%A9-septa_study1.html
+
+Publication: 
+
 ```{r eval = FALSE, include = FALSE}
 fs::dir_tree()
 ```

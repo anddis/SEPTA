@@ -525,12 +525,8 @@ tidy_binom.test <- function(x) {
 }
 
 tidy_sesp.rel <- function(x) {
-  myfmt <- function(x) {
-    sprintf("%4.2f", x)
-  }
-  
-  se <- paste0(myfmt(x$sensitivity["rel.sens"]), " (", myfmt(x$sensitivity["lcl.rel.sens"]), "-", myfmt(x$sensitivity["ucl.rel.sens"]), ")")
-  sp <- paste0(myfmt(x$specificity["rel.spec"]), " (", myfmt(x$specificity["lcl.rel.spec"]), "-", myfmt(x$specificity["ucl.rel.spec"]), ")")
+  se <- format_ci(c(x$sensitivity["rel.sens"], x$sensitivity["lcl.rel.sens"], x$sensitivity["ucl.rel.sens"]))
+  sp <- format_ci(c(x$specificity["rel.spec"], x$specificity["lcl.rel.spec"], x$specificity["ucl.rel.spec"]))
   
   list(sensitivity = se,
        specificity = sp)
@@ -789,15 +785,16 @@ plot_figure_1 <- function(dat, title, panel) {
   
   if(panel == "rsens") {
     step1 +
-        annotation_custom(grid::textGrob("Noninferiority\nmargin", gp=grid::gpar(fontsize = 9)),
-                          ymin=-1.1, ymax=-1.1, xmin=-0.22, xmax=-0.22)
+      geom_vline(xintercept = 0.8, lty = 2) +
+      annotation_custom(grid::textGrob("Noninferiority\nmargin", gp=grid::gpar(fontsize = 9)),
+                        ymin=-1.1, ymax=-1.1, xmin=-0.22, xmax=-0.22)
   } else if (panel == "rspec") {
     step1 +
       annotation_custom(grid::textGrob("Stockholm3 better", gp=grid::gpar(fontsize = 12)),
                         ymin=-0.9, ymax=-0.9, xmin=0.4, xmax=0.4) +
       annotation_custom(grid::textGrob("PSA better", gp=grid::gpar(fontsize = 12)),
                         ymin=-0.9, ymax=-0.9, xmin=-0.3, xmax=-0.3)
-      
+    
   }
 }
 
@@ -850,10 +847,7 @@ make_strata_vars <- function(dat) {
 
 
 tidy_auc <- function(obj) {
-  aucfmt <- function(x) {
-    sprintf("%5.3f", x)
-  }
-  out <- data.frame(auc = paste0(aucfmt(obj[2]), " (", aucfmt(obj[1]), "-", aucfmt(obj[3]), ")"))
+  out <- data.frame(auc = format_ci(c(obj[2], obj[1], obj[3]), digits = 3))
   return(out)
 }
 
@@ -1119,17 +1113,18 @@ gt_table_rpv <- function(tbl){
     tab_style(
       style = cell_text(style = "italic", align = "center"),
       locations = cells_row_groups()
-    )
+    ) |> 
+    tab_options(table.font.size = px(14))
 }
 
 
 calculate_s3m_threshold_at_fixed_sens <- function(dat, fixed_sens = 0.9) {
   roc <- calculate_roc(dat$risk_score, dat$cb_isup2p)
-  select_row <- which.max(roc[, "TPF"] >= fixed_sens)
+  select_row <- which(roc[, "TPF"] >= fixed_sens)[1]
   
   roc[select_row, ] |> 
     mutate(TNF = 1-FPF) |> 
-    relocate(c, TNF, TPF)
+    relocate(c, TNF, TPF, FPF)
 }
 
 
@@ -1266,44 +1261,40 @@ make_gt_table_labels <- function() {
 }
 
 
-plot_rpv_ellipse <- function(obj, s3_threshold) {
-  myfmt <- function(x) {
-    sprintf("%4.2f", x)
-  }
-  
-  data_ellipse <- map(obj, \(x) as.data.frame(ellipse.pv.rpv(x, exponentiate = TRUE)$ellipse)) |> 
-    bind_rows(.id = "race") |> 
-    mutate(race = factor(race, levels = c("Overall", levels(septa$race)))) 
-  
-  data_centre <- map(obj, \(x) as.data.frame(as.list(ellipse.pv.rpv(x, exponentiate = TRUE)$centre))) |> 
-    bind_rows(.id = "race") |> 
-    mutate(race = factor(race, levels = c("Overall", levels(septa$race))),
-           label = paste0("rPPV: ", myfmt(rppv), "\n rNPV: ", myfmt(rnpv)))
-  
-  ggplot(data_ellipse, aes(x = rppv, y = rnpv)) +
-    geom_polygon(colour = "black", fill = "gray", alpha = 0.5, linewidth = 0.3) +
-    geom_point(data = data_centre, aes(x = rppv, y = rnpv), cex = 0.7) +
-    geom_label(data = data_centre, aes(x = 1.15, y = 1.6, label = label), size = 4, label.size = NA) + 
-    geom_vline(xintercept = 1, lty = 3) +
-    geom_hline(yintercept = 1, lty = 3) +
-    facet_wrap(~ race, scales = "free") +
-    theme_minimal(base_size = 12) +
-    scale_x_continuous(trans = "log", limits = c(0.9, 1.8), breaks = seq(0.9, 1.8, 0.1), labels = scales::label_number(accuracy = .1)) +
-    scale_y_continuous(trans = "log", limits = c(0.9, 1.8), breaks = seq(0.9, 1.8, 0.1), labels = scales::label_number(accuracy = .1)) +
-    labs(x = "rPPV",
-         y = "rNPV",
-         title = "Relative Predictive Values with 95% Confidence Region (ISUP>=2 cancer)",
-         subtitle = paste0("Stockholm3 >=", s3_threshold, " versus PSA >=4 ng/ml"),
-         caption = "Shaded area is the 95% Confidence Region.\nDotted line indicates no difference in Predictive Values.\nrPPV: relative Positive Predictive Value. rNPV: relative Negative Predictive Value.") +
-    theme(strip.text = element_text(size = 13))
-}
-
+# plot_rpv_ellipse <- function(obj, s3_threshold) {
+#   myfmt <- function(x) {
+#     sprintf("%4.2f", x)
+#   }
+#   
+#   data_ellipse <- map(obj, \(x) as.data.frame(ellipse.pv.rpv(x, exponentiate = TRUE)$ellipse)) |> 
+#     bind_rows(.id = "race") |> 
+#     mutate(race = factor(race, levels = c("Overall", levels(septa$race)))) 
+#   
+#   data_centre <- map(obj, \(x) as.data.frame(as.list(ellipse.pv.rpv(x, exponentiate = TRUE)$centre))) |> 
+#     bind_rows(.id = "race") |> 
+#     mutate(race = factor(race, levels = c("Overall", levels(septa$race))),
+#            label = paste0("rPPV: ", myfmt(rppv), "\n rNPV: ", myfmt(rnpv)))
+#   
+#   ggplot(data_ellipse, aes(x = rppv, y = rnpv)) +
+#     geom_polygon(colour = "black", fill = "gray", alpha = 0.5, linewidth = 0.3) +
+#     geom_point(data = data_centre, aes(x = rppv, y = rnpv), cex = 0.7) +
+#     geom_label(data = data_centre, aes(x = 1.15, y = 1.6, label = label), size = 4, label.size = NA) + 
+#     geom_vline(xintercept = 1, lty = 3) +
+#     geom_hline(yintercept = 1, lty = 3) +
+#     facet_wrap(~ race, scales = "free") +
+#     theme_minimal(base_size = 12) +
+#     scale_x_continuous(trans = "log", limits = c(0.9, 1.8), breaks = seq(0.9, 1.8, 0.1), labels = scales::label_number(accuracy = .1)) +
+#     scale_y_continuous(trans = "log", limits = c(0.9, 1.8), breaks = seq(0.9, 1.8, 0.1), labels = scales::label_number(accuracy = .1)) +
+#     labs(x = "rPPV",
+#          y = "rNPV",
+#          title = "Relative Predictive Values with 95% Confidence Region (ISUP>=2 cancer)",
+#          subtitle = paste0("Stockholm3 >=", s3_threshold, " versus PSA >=4 ng/ml"),
+#          caption = "Shaded area is the 95% Confidence Region.\nDotted line indicates no difference in Predictive Values.\nrPPV: relative Positive Predictive Value. rNPV: relative Negative Predictive Value.") +
+#     theme(strip.text = element_text(size = 13))
+# }
+# 
 tidy_pv.rpv <- function(obj) {
-  myfmt <- function(x) {
-    sprintf("%4.2f", x)
-  }
-  
-  map_chr(obj[c("ppv", "npv")], \(x) paste0(myfmt(x[3]), " (", myfmt(x[5]), "-", myfmt(x[6]), ")")) |> 
+  map_chr(obj[c("ppv", "npv")], \(x) format_ci(c(x[3], x[5], x[6]))) |>
    enframe(name = "pv")
 }
 
@@ -1329,7 +1320,7 @@ plot_rpv_ellipse_overlay <- function(obj) {
   
   mycolors <- c("tomato3", "deepskyblue3")
   
-  ggplot(data_ellipse, aes(x = rppv, y = rnpv, fill = paste0(">=", s3_threshold))) +
+  ggplot(data_ellipse, aes(x = rppv, y = rnpv, fill = paste0("Stockholm3 >=", s3_threshold, " vs PSA >= 4 ng/ml"))) +
     geom_polygon(alpha = 0.4) +
     geom_point(data = data_centre, aes(x = rppv, y = rnpv, color = s3_threshold), 
                inherit.aes = FALSE, show.legend = FALSE) +
@@ -1347,9 +1338,9 @@ plot_rpv_ellipse_overlay <- function(obj) {
     labs(x = "rPPV",
          y = "rNPV",
          title = "Relative Predictive Values with 95% Confidence Region (ISUP>=2 cancer)",
-         subtitle = paste0("Stockholm3 >=11 and Stockholm3 >=15  versus PSA >=4 ng/ml"),
+         subtitle = "Stockholm3 >=11 and Stockholm3 >=15  versus PSA >=4 ng/ml",
          caption = "Shaded area is the 95% Confidence Region.\nDotted line indicates no difference in Predictive Values.\nrPPV: relative Positive Predictive Value. rNPV: relative Negative Predictive Value.",
-         fill = "Stockholm3 threshold:") +
+         fill = NULL) +
     theme(strip.text = element_text(size = 13),
           legend.position = "bottom",
           aspect.ratio = 1)
@@ -1500,12 +1491,8 @@ acc.1test.Ro3 <- function (tab, alpha, testname, ...)
 }
 
 
-
-
-
-
-
-
-
-
-
+format_ci <- function(x, digits = 2) {
+  # x = c(point.estimate, lcl, ucl)
+  fmt <- gsub("X", digits, "%.Xf (%.Xf-%.Xf)")
+  do.call("sprintf", c(fmt = fmt, as.list(x)))
+}
